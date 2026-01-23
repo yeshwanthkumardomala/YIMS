@@ -3,6 +3,8 @@
 export type AppRole = 'admin' | 'operator' | 'student';
 export type LocationType = 'building' | 'room' | 'shelf' | 'box' | 'drawer';
 export type TransactionType = 'stock_in' | 'stock_out' | 'adjustment';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+export type ApprovalRequestType = 'large_stock_out' | 'new_item' | 'item_update';
 
 export interface Profile {
   id: string;
@@ -29,7 +31,13 @@ export interface Category {
   id: string;
   name: string;
   description: string | null;
+  color: string;
+  icon: string;
+  is_active: boolean;
+  created_by: string | null;
   created_at: string;
+  updated_at: string;
+  item_count?: number;
 }
 
 export interface Location {
@@ -60,6 +68,7 @@ export interface Item {
   minimum_stock: number;
   unit: string;
   image_url: string | null;
+  has_variants: boolean;
   is_active: boolean;
   created_by: string | null;
   created_at: string;
@@ -67,6 +76,23 @@ export interface Item {
   // Computed/joined fields
   category?: Category | null;
   location?: Location | null;
+  variants?: ItemVariant[];
+}
+
+export interface ItemVariant {
+  id: string;
+  parent_item_id: string;
+  variant_name: string;
+  variant_attributes: Record<string, string>;
+  sku_suffix: string | null;
+  current_stock: number;
+  minimum_stock: number;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  // Computed/joined fields
+  parent_item?: Item | null;
 }
 
 export interface StockTransaction {
@@ -123,10 +149,67 @@ export interface SystemLog {
   created_at: string;
 }
 
+export interface ApprovalRequest {
+  id: string;
+  request_type: ApprovalRequestType;
+  requested_by: string;
+  item_id: string | null;
+  variant_id: string | null;
+  quantity: number | null;
+  threshold_exceeded: number | null;
+  reason: string | null;
+  status: ApprovalStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_notes: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  // Computed/joined fields
+  requester?: Profile | null;
+  reviewer?: Profile | null;
+  item?: Item | null;
+}
+
+export interface AppSetting {
+  id: string;
+  key: string;
+  value: unknown;
+  description: string | null;
+  updated_by: string | null;
+  updated_at: string;
+}
+
 // Dashboard stats
 export interface DashboardStats {
   totalItems: number;
   lowStockItems: number;
   totalLocations: number;
   recentTransactions: number;
+}
+
+// Filter types for advanced filtering
+export interface DateRange {
+  from: Date | undefined;
+  to: Date | undefined;
+}
+
+export interface StockRange {
+  min: number;
+  max: number;
+}
+
+export interface ItemFilters {
+  search: string;
+  categories: string[];
+  locations: string[];
+  stockRange: StockRange;
+  stockStatus: 'all' | 'in_stock' | 'low_stock' | 'out_of_stock';
+  hasVariants: 'all' | 'yes' | 'no';
+}
+
+export interface TransactionFilters {
+  search: string;
+  dateRange: DateRange;
+  types: TransactionType[];
+  users: string[];
 }

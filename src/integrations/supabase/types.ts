@@ -14,6 +14,99 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          description: string | null
+          id: string
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
+      approval_requests: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string | null
+          metadata: Json | null
+          quantity: number | null
+          reason: string | null
+          request_type: string
+          requested_by: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          threshold_exceeded: number | null
+          variant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          metadata?: Json | null
+          quantity?: number | null
+          reason?: string | null
+          request_type: string
+          requested_by: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          threshold_exceeded?: number | null
+          variant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          metadata?: Json | null
+          quantity?: number | null
+          reason?: string | null
+          request_type?: string
+          requested_by?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          threshold_exceeded?: number | null
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_requests_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "item_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           color: string | null
@@ -50,6 +143,56 @@ export type Database = {
         }
         Relationships: []
       }
+      item_variants: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          current_stock: number
+          id: string
+          is_active: boolean
+          minimum_stock: number
+          parent_item_id: string
+          sku_suffix: string | null
+          updated_at: string
+          variant_attributes: Json
+          variant_name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          current_stock?: number
+          id?: string
+          is_active?: boolean
+          minimum_stock?: number
+          parent_item_id: string
+          sku_suffix?: string | null
+          updated_at?: string
+          variant_attributes?: Json
+          variant_name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          current_stock?: number
+          id?: string
+          is_active?: boolean
+          minimum_stock?: number
+          parent_item_id?: string
+          sku_suffix?: string | null
+          updated_at?: string
+          variant_attributes?: Json
+          variant_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_variants_parent_item_id_fkey"
+            columns: ["parent_item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       items: {
         Row: {
           category_id: string | null
@@ -58,6 +201,7 @@ export type Database = {
           created_by: string | null
           current_stock: number
           description: string | null
+          has_variants: boolean | null
           id: string
           image_url: string | null
           is_active: boolean
@@ -74,6 +218,7 @@ export type Database = {
           created_by?: string | null
           current_stock?: number
           description?: string | null
+          has_variants?: boolean | null
           id?: string
           image_url?: string | null
           is_active?: boolean
@@ -90,6 +235,7 @@ export type Database = {
           created_by?: string | null
           current_stock?: number
           description?: string | null
+          has_variants?: boolean | null
           id?: string
           image_url?: string | null
           is_active?: boolean
