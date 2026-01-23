@@ -374,6 +374,19 @@ export default function Settings() {
                 onCheckedChange={(checked) => updateSetting('showItemCodes', checked)}
               />
             </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Quick Add Button</Label>
+                <p className="text-sm text-muted-foreground">
+                  Show floating button for quick access
+                </p>
+              </div>
+              <Switch
+                checked={settings.showQuickAddToolbar}
+                onCheckedChange={(checked) => updateSetting('showQuickAddToolbar', checked)}
+              />
+            </div>
           </CardContent>
         </Card>
 
