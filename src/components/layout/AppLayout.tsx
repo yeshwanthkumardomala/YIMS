@@ -43,8 +43,11 @@ import {
   Shield,
   FileText,
   CheckSquare,
+  Info,
+  BookOpen,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { Badge } from '@/components/ui/badge';
 
 interface AppLayoutProps {
@@ -68,6 +71,11 @@ const adminItems = [
   { icon: Users, label: 'Users', href: '/users', roles: ['admin'] },
   { icon: Shield, label: 'System Logs', href: '/logs', roles: ['admin'] },
   { icon: Settings, label: 'Settings', href: '/settings', roles: ['admin'] },
+];
+
+const helpItems = [
+  { icon: BookOpen, label: 'How to Use', href: '/how-to-use' },
+  { icon: Info, label: 'About', href: '/about' },
 ];
 
 export function AppLayout({ children }: AppLayoutProps) {
@@ -167,6 +175,28 @@ export function AppLayout({ children }: AppLayoutProps) {
                 </SidebarGroupContent>
               </SidebarGroup>
             )}
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Help</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {helpItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={location.pathname === item.href}
+                        tooltip={item.label}
+                      >
+                        <Link to={item.href}>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
           </SidebarContent>
 
           <SidebarFooter className="border-t border-sidebar-border p-4">
@@ -217,6 +247,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         <SidebarInset className="flex flex-col">
           <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4">
             <SidebarTrigger />
+            <div className="flex-1" />
+            <OfflineIndicator />
           </header>
           <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
         </SidebarInset>
