@@ -1,0 +1,41 @@
+{
+  "appId": "com.yims.inventory",
+  "productName": "YIMS",
+  "directories": {
+    "output": "release/${version}"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      },
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "public/favicon.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "installerIcon": "public/favicon.ico",
+    "uninstallerIcon": "public/favicon.ico"
+  },
+  "portable": {
+    "artifactName": "YIMS-Portable-${version}.exe"
+  },
+  "mac": {
+    "target": ["dmg"],
+    "icon": "public/favicon.ico"
+  },
+  "linux": {
+    "target": ["AppImage"],
+    "icon": "public/favicon.ico"
+  }
+}
