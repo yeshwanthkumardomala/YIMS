@@ -208,6 +208,7 @@ export type Database = {
           location_id: string | null
           minimum_stock: number
           name: string
+          search_vector: unknown
           unit: string
           updated_at: string
         }
@@ -225,6 +226,7 @@ export type Database = {
           location_id?: string | null
           minimum_stock?: number
           name: string
+          search_vector?: unknown
           unit?: string
           updated_at?: string
         }
@@ -242,6 +244,7 @@ export type Database = {
           location_id?: string | null
           minimum_stock?: number
           name?: string
+          search_vector?: unknown
           unit?: string
           updated_at?: string
         }
@@ -309,8 +312,51 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          action_url: string | null
+          category: string
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          metadata: Json | null
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          category?: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          metadata?: Json | null
+          read_at?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          category?: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          metadata?: Json | null
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          backup_codes: string[] | null
           created_at: string
           failed_login_attempts: number
           force_password_change: boolean
@@ -318,11 +364,15 @@ export type Database = {
           id: string
           is_active: boolean
           locked_until: string | null
+          two_factor_enabled: boolean | null
+          two_factor_secret: string | null
+          two_factor_verified_at: string | null
           updated_at: string
           user_id: string
           username: string
         }
         Insert: {
+          backup_codes?: string[] | null
           created_at?: string
           failed_login_attempts?: number
           force_password_change?: boolean
@@ -330,11 +380,15 @@ export type Database = {
           id?: string
           is_active?: boolean
           locked_until?: string | null
+          two_factor_enabled?: boolean | null
+          two_factor_secret?: string | null
+          two_factor_verified_at?: string | null
           updated_at?: string
           user_id: string
           username: string
         }
         Update: {
+          backup_codes?: string[] | null
           created_at?: string
           failed_login_attempts?: number
           force_password_change?: boolean
@@ -342,9 +396,39 @@ export type Database = {
           id?: string
           is_active?: boolean
           locked_until?: string | null
+          two_factor_enabled?: boolean | null
+          two_factor_secret?: string | null
+          two_factor_verified_at?: string | null
           updated_at?: string
           user_id?: string
           username?: string
+        }
+        Relationships: []
+      }
+      rate_limit_logs: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          id: string
+          identifier: string
+          request_count: number | null
+          window_start: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          id?: string
+          identifier: string
+          request_count?: number | null
+          window_start: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          id?: string
+          identifier?: string
+          request_count?: number | null
+          window_start?: string
         }
         Relationships: []
       }
@@ -455,30 +539,45 @@ export type Database = {
       }
       system_logs: {
         Row: {
+          affected_rows: number | null
           created_at: string
+          duration_ms: number | null
           event_description: string
           event_type: string
           id: string
           ip_address: string | null
           metadata: Json | null
+          new_values: Json | null
+          old_values: Json | null
+          request_id: string | null
           user_id: string | null
         }
         Insert: {
+          affected_rows?: number | null
           created_at?: string
+          duration_ms?: number | null
           event_description: string
           event_type: string
           id?: string
           ip_address?: string | null
           metadata?: Json | null
+          new_values?: Json | null
+          old_values?: Json | null
+          request_id?: string | null
           user_id?: string | null
         }
         Update: {
+          affected_rows?: number | null
           created_at?: string
+          duration_ms?: number | null
           event_description?: string
           event_type?: string
           id?: string
           ip_address?: string | null
           metadata?: Json | null
+          new_values?: Json | null
+          old_values?: Json | null
+          request_id?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -548,15 +647,125 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_configs: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          events: string[]
+          headers: Json | null
+          id: string
+          is_active: boolean | null
+          name: string
+          retry_count: number | null
+          secret: string | null
+          timeout_seconds: number | null
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          events: string[]
+          headers?: Json | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          retry_count?: number | null
+          secret?: string | null
+          timeout_seconds?: number | null
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          events?: string[]
+          headers?: Json | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          retry_count?: number | null
+          secret?: string | null
+          timeout_seconds?: number | null
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: []
+      }
+      webhook_logs: {
+        Row: {
+          attempt_number: number | null
+          delivered_at: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          payload: Json
+          response_body: string | null
+          response_status: number | null
+          success: boolean | null
+          webhook_id: string | null
+        }
+        Insert: {
+          attempt_number?: number | null
+          delivered_at?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          payload: Json
+          response_body?: string | null
+          response_status?: number | null
+          success?: boolean | null
+          webhook_id?: string | null
+        }
+        Update: {
+          attempt_number?: number | null
+          delivered_at?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json
+          response_body?: string | null
+          response_status?: number | null
+          success?: boolean | null
+          webhook_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_logs_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      check_and_notify_low_stock: { Args: never; Returns: number }
       generate_item_code: { Args: never; Returns: string }
       generate_location_code: {
         Args: { _type: Database["public"]["Enums"]["location_type"] }
         Returns: string
+      }
+      get_items_paginated: {
+        Args: {
+          p_category_id?: string
+          p_cursor?: string
+          p_direction?: string
+          p_limit?: number
+          p_location_id?: string
+          p_stock_status?: string
+        }
+        Returns: {
+          has_more: boolean
+          items: Json
+          next_cursor: string
+          prev_cursor: string
+          total_count: number
+        }[]
       }
       get_user_role: {
         Args: { _user_id: string }
@@ -568,6 +777,26 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      search_items: {
+        Args: { p_limit?: number; p_offset?: number; search_query: string }
+        Returns: {
+          category_id: string
+          code: string
+          created_at: string
+          current_stock: number
+          description: string
+          has_variants: boolean
+          id: string
+          image_url: string
+          is_active: boolean
+          location_id: string
+          minimum_stock: number
+          name: string
+          rank: number
+          unit: string
+          updated_at: string
+        }[]
       }
     }
     Enums: {
