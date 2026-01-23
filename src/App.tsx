@@ -6,8 +6,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { OfflineModeProvider } from "@/contexts/OfflineModeContext";
+import { SafeModeProvider } from "@/contexts/SafeModeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { SafeModeIndicator } from "@/components/SafeModeIndicator";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Items from "./pages/Items";
@@ -32,17 +34,19 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <OfflineModeProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AuthProvider>
-              <Routes>
-                <Route path="/auth" element={<Auth />} />
-                
-                {/* Public Pages (accessible without auth) */}
-                <Route path="/about" element={<About />} />
-                <Route path="/how-to-use" element={<HowToUse />} />
+        <SafeModeProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <SafeModeIndicator />
+              <AuthProvider>
+                <Routes>
+                  <Route path="/auth" element={<Auth />} />
+                  
+                  {/* Public Pages (accessible without auth) */}
+                  <Route path="/about" element={<About />} />
+                  <Route path="/how-to-use" element={<HowToUse />} />
               
               {/* Protected Routes */}
               <Route
@@ -184,9 +188,10 @@ const App = () => (
             </AuthProvider>
           </BrowserRouter>
         </TooltipProvider>
-      </OfflineModeProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+      </SafeModeProvider>
+    </OfflineModeProvider>
+  </ThemeProvider>
+</QueryClientProvider>
 );
 
 export default App;
