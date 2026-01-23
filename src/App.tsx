@@ -19,6 +19,8 @@ import ImportExport from "./pages/ImportExport";
 import Users from "./pages/Users";
 import SystemLogs from "./pages/SystemLogs";
 import Settings from "./pages/Settings";
+import Reports from "./pages/Reports";
+import Approvals from "./pages/Approvals";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -143,6 +145,26 @@ const App = () => (
                   <ProtectedRoute allowedRoles={['admin']}>
                     <AppLayout>
                       <Settings />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/reports"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AppLayout>
+                      <Reports />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/approvals"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AppLayout>
+                      <Approvals />
                     </AppLayout>
                   </ProtectedRoute>
                 }

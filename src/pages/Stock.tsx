@@ -13,15 +13,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { ArrowDownToLine, ArrowUpFromLine, AlertTriangle, Loader2, Package } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, AlertTriangle, Loader2, Package, Clock, Image as ImageIcon } from 'lucide-react';
 import type { Item, Location } from '@/types/database';
 
 interface RouterState {
   itemId?: string;
   action?: 'stock_in' | 'stock_out';
+}
+
+interface AppSettings {
+  stock_out_approval_threshold?: number;
 }
 
 export default function Stock() {
@@ -34,6 +46,14 @@ export default function Stock() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<'stock_in' | 'stock_out'>(state?.action || 'stock_in');
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
+  const [approvalReason, setApprovalReason] = useState('');
+  const [pendingTransaction, setPendingTransaction] = useState<null | {
+    item: Item;
+    quantity: number;
+    threshold: number;
+  }>(null);
+  const [settings, setSettings] = useState<AppSettings>({});
 
   const [formData, setFormData] = useState({
     item_id: state?.itemId || '',
@@ -51,13 +71,14 @@ export default function Stock() {
 
   async function fetchData() {
     try {
-      const [itemsRes, locationsRes] = await Promise.all([
+      const [itemsRes, locationsRes, settingsRes] = await Promise.all([
         supabase
           .from('items')
           .select('*')
           .eq('is_active', true)
           .order('name'),
         supabase.from('locations').select('*').eq('is_active', true).order('name'),
+        supabase.from('app_settings').select('key, value').in('key', ['stock_out_approval_threshold']),
       ]);
 
       if (itemsRes.error) throw itemsRes.error;
@@ -65,6 +86,15 @@ export default function Stock() {
 
       setItems(itemsRes.data || []);
       setLocations(locationsRes.data || []);
+
+      // Parse settings
+      const settingsMap: AppSettings = {};
+      settingsRes.data?.forEach((s) => {
+        if (s.key === 'stock_out_approval_threshold') {
+          settingsMap.stock_out_approval_threshold = s.value as number;
+        }
+      });
+      setSettings(settingsMap);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
@@ -101,6 +131,43 @@ export default function Stock() {
     setSelectedItem(null);
   }
 
+  async function submitApprovalRequest() {
+    if (!pendingTransaction || !user) return;
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from('approval_requests').insert({
+        request_type: 'large_stock_out',
+        requested_by: user.id,
+        item_id: pendingTransaction.item.id,
+        quantity: pendingTransaction.quantity,
+        threshold_exceeded: pendingTransaction.threshold,
+        reason: approvalReason.trim() || null,
+        status: 'pending',
+        metadata: {
+          item_name: pendingTransaction.item.name,
+          item_code: pendingTransaction.item.code,
+          location_id: formData.location_id || null,
+          recipient: formData.recipient.trim() || null,
+          notes: formData.notes.trim() || null,
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success('Approval request submitted. An admin will review your request.');
+      setApprovalDialogOpen(false);
+      setApprovalReason('');
+      setPendingTransaction(null);
+      resetForm();
+    } catch (error: unknown) {
+      console.error('Error submitting approval request:', error);
+      toast.error((error as Error).message || 'Failed to submit approval request');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -114,6 +181,18 @@ export default function Stock() {
       return;
     }
 
+    // Check if approval is required for large stock-outs
+    const threshold = settings.stock_out_approval_threshold || 0;
+    if (activeTab === 'stock_out' && threshold > 0 && formData.quantity > threshold) {
+      setPendingTransaction({
+        item: selectedItem,
+        quantity: formData.quantity,
+        threshold,
+      });
+      setApprovalDialogOpen(true);
+      return;
+    }
+
     // Check for negative stock warning
     if (activeTab === 'stock_out') {
       const newBalance = selectedItem.current_stock - formData.quantity;
@@ -124,6 +203,12 @@ export default function Stock() {
         if (!confirmed) return;
       }
     }
+
+    await processTransaction();
+  }
+
+  async function processTransaction() {
+    if (!selectedItem || !user) return;
 
     setSubmitting(true);
     try {
@@ -315,6 +400,14 @@ export default function Stock() {
                       </span>
                     </div>
                   )}
+                  {settings.stock_out_approval_threshold && settings.stock_out_approval_threshold > 0 && (
+                    <div className="flex items-center gap-2 rounded-lg border border-muted bg-muted/50 p-3 text-sm">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span>
+                        Stock-outs exceeding {settings.stock_out_approval_threshold} units require admin approval
+                      </span>
+                    </div>
+                  )}
                   <div className="grid gap-2">
                     <Label htmlFor="recipient">Recipient / Used By</Label>
                     <Input
@@ -358,9 +451,17 @@ export default function Stock() {
           <CardContent>
             {selectedItem ? (
               <div className="space-y-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-primary/10">
-                  <Package className="h-8 w-8 text-primary" />
-                </div>
+                {selectedItem.image_url ? (
+                  <img 
+                    src={selectedItem.image_url} 
+                    alt={selectedItem.name}
+                    className="h-24 w-24 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-primary/10">
+                    <Package className="h-12 w-12 text-primary" />
+                  </div>
+                )}
                 <div>
                   <h3 className="font-semibold">{selectedItem.name}</h3>
                   <p className="text-sm text-muted-foreground font-mono">{selectedItem.code}</p>
@@ -414,6 +515,47 @@ export default function Stock() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Approval Request Dialog */}
+      <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approval Required</DialogTitle>
+            <DialogDescription>
+              This stock-out of {pendingTransaction?.quantity} units exceeds the approval threshold of {pendingTransaction?.threshold} units.
+              Please provide a reason for this request.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="approval-reason">Reason for Request</Label>
+              <Textarea
+                id="approval-reason"
+                value={approvalReason}
+                onChange={(e) => setApprovalReason(e.target.value)}
+                placeholder="Explain why you need this quantity..."
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setApprovalDialogOpen(false);
+                setPendingTransaction(null);
+                setApprovalReason('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={submitApprovalRequest} disabled={submitting}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Submit for Approval
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
