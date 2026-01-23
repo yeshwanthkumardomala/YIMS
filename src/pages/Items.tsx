@@ -33,7 +33,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { Plus, Search, Package, Pencil, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
+import { Plus, Search, Package, Pencil, Trash2, QrCode, Loader2 } from 'lucide-react';
+import { CodeGenerator } from '@/components/CodeGenerator';
 import type { Item, Category, Location } from '@/types/database';
 
 export default function Items() {
@@ -47,6 +48,7 @@ export default function Items() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [codeGeneratorItem, setCodeGeneratorItem] = useState<Item | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -397,9 +399,9 @@ export default function Items() {
                   <TableHead>Name</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Location</TableHead>
-                  <TableHead className="text-right">Stock</TableHead>
-                  <TableHead>Status</TableHead>
-                  {canManageInventory && <TableHead className="w-[100px]">Actions</TableHead>}
+                    <TableHead className="text-right">Stock</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[120px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -417,27 +419,37 @@ export default function Items() {
                       {item.current_stock} {item.unit}
                     </TableCell>
                     <TableCell>{getStockBadge(item)}</TableCell>
-                    {canManageInventory && (
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditDialog(item)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(item)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    )}
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setCodeGeneratorItem(item)}
+                          title="Generate Code"
+                        >
+                          <QrCode className="h-4 w-4" />
+                        </Button>
+                        {canManageInventory && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditDialog(item)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(item)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -445,6 +457,15 @@ export default function Items() {
           )}
         </CardContent>
       </Card>
+
+      {/* Code Generator Dialog */}
+      <CodeGenerator
+        open={!!codeGeneratorItem}
+        onOpenChange={(open) => !open && setCodeGeneratorItem(null)}
+        code={codeGeneratorItem?.code || ''}
+        name={codeGeneratorItem?.name || ''}
+        type="item"
+      />
     </div>
   );
 }

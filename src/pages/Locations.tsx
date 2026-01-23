@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -22,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -37,7 +37,9 @@ import {
   Loader2,
   Pencil,
   Trash2,
+  QrCode,
 } from 'lucide-react';
+import { CodeGenerator } from '@/components/CodeGenerator';
 import type { Location, LocationType } from '@/types/database';
 
 const LOCATION_TYPES: { value: LocationType; label: string; icon: typeof Building2 }[] = [
@@ -56,6 +58,7 @@ export default function Locations() {
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
+  const [codeGeneratorLocation, setCodeGeneratorLocation] = useState<Location | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -249,21 +252,31 @@ export default function Locations() {
           <Badge variant="secondary" className="capitalize">
             {location.location_type}
           </Badge>
-          {canManageInventory && (
-            <div className="flex gap-1">
-              <Button variant="ghost" size="icon" onClick={() => openEditDialog(location)}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleDelete(location)}
-                className="text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCodeGeneratorLocation(location)}
+              title="Generate Code"
+            >
+              <QrCode className="h-4 w-4" />
+            </Button>
+            {canManageInventory && (
+              <>
+                <Button variant="ghost" size="icon" onClick={() => openEditDialog(location)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDelete(location)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </div>
         </div>,
         ...(isExpanded ? renderLocationTree(children, depth + 1) : []),
       ];
@@ -414,6 +427,15 @@ export default function Locations() {
           )}
         </CardContent>
       </Card>
+
+      {/* Code Generator Dialog */}
+      <CodeGenerator
+        open={!!codeGeneratorLocation}
+        onOpenChange={(open) => !open && setCodeGeneratorLocation(null)}
+        code={codeGeneratorLocation?.code || ''}
+        name={codeGeneratorLocation?.name || ''}
+        type="location"
+      />
     </div>
   );
 }
