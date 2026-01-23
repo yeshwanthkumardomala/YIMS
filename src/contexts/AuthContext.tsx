@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { logSystemEvent } from '@/lib/systemLogger';
 import type { Profile, AppRole } from '@/types/database';
 
 interface AuthContextType {
@@ -103,14 +104,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Username-based login: we use email format username@yims.local
       const email = `${username.toLowerCase()}@yims.local`;
       
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        // Log failed login attempt
+        await logSystemEvent({
+          eventType: 'login_failed',
+          description: `Failed login attempt for username: ${username}`,
+          metadata: { username, error: error.message },
+        });
         return { error: new Error(error.message) };
       }
+
+      // Log successful login
+      await logSystemEvent({
+        eventType: 'login_success',
+        description: `User ${username} logged in successfully`,
+        metadata: { username },
+        userId: data.user?.id,
+      });
 
       return { error: null };
     } catch (error) {
@@ -124,7 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const email = `${username.toLowerCase()}@yims.local`;
       const redirectUrl = `${window.location.origin}/`;
       
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -140,6 +155,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: new Error(error.message) };
       }
 
+      // Log signup
+      await logSystemEvent({
+        eventType: 'signup',
+        description: `New user registered: ${username}`,
+        metadata: { username, fullName },
+        userId: data.user?.id,
+      });
+
       return { error: null };
     } catch (error) {
       return { error: error as Error };
@@ -147,6 +170,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
+    // Log logout before signing out
+    await logSystemEvent({
+      eventType: 'logout',
+      description: `User ${profile?.username || 'unknown'} logged out`,
+      metadata: { username: profile?.username },
+    });
+    
     await supabase.auth.signOut();
     setProfile(null);
     setRole(null);

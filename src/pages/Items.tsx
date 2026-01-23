@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { logSystemEvent } from '@/lib/systemLogger';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -139,13 +140,21 @@ export default function Items() {
           .eq('id', editingItem.id);
 
         if (error) throw error;
+        
+        await logSystemEvent({
+          eventType: 'item_updated',
+          description: `Item "${formData.name}" was updated`,
+          metadata: { itemId: editingItem.id, itemCode: editingItem.code, name: formData.name },
+        });
+        
         toast.success('Item updated successfully');
       } else {
         // Generate code for new item
         const { data: codeData } = await supabase.rpc('generate_item_code');
+        const itemCode = codeData || `YIMS:ITEM:${Date.now()}`;
         
-        const { error } = await supabase.from('items').insert({
-          code: codeData || `YIMS:ITEM:${Date.now()}`,
+        const { data: newItem, error } = await supabase.from('items').insert({
+          code: itemCode,
           name: formData.name.trim(),
           description: formData.description.trim() || null,
           category_id: formData.category_id || null,
@@ -153,9 +162,16 @@ export default function Items() {
           minimum_stock: formData.minimum_stock,
           unit: formData.unit,
           current_stock: 0,
-        });
+        }).select('id').single();
 
         if (error) throw error;
+        
+        await logSystemEvent({
+          eventType: 'item_created',
+          description: `New item "${formData.name}" was created`,
+          metadata: { itemId: newItem?.id, itemCode, name: formData.name },
+        });
+        
         toast.success('Item created successfully');
       }
 
@@ -180,6 +196,13 @@ export default function Items() {
         .eq('id', item.id);
 
       if (error) throw error;
+      
+      await logSystemEvent({
+        eventType: 'item_deleted',
+        description: `Item "${item.name}" was deleted`,
+        metadata: { itemId: item.id, itemCode: item.code, name: item.name },
+      });
+      
       toast.success('Item deleted successfully');
       fetchData();
     } catch (error) {

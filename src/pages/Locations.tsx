@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { logSystemEvent } from '@/lib/systemLogger';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -141,21 +142,36 @@ export default function Locations() {
           .eq('id', editingLocation.id);
 
         if (error) throw error;
+        
+        await logSystemEvent({
+          eventType: 'location_updated',
+          description: `Location "${formData.name}" was updated`,
+          metadata: { locationId: editingLocation.id, locationCode: editingLocation.code, name: formData.name, type: formData.location_type },
+        });
+        
         toast.success('Location updated successfully');
       } else {
         const { data: codeData } = await supabase.rpc('generate_location_code', {
           _type: formData.location_type,
         });
+        const locationCode = codeData || `YIMS:${formData.location_type.toUpperCase()}:${Date.now()}`;
 
-        const { error } = await supabase.from('locations').insert({
-          code: codeData || `YIMS:${formData.location_type.toUpperCase()}:${Date.now()}`,
+        const { data: newLocation, error } = await supabase.from('locations').insert({
+          code: locationCode,
           name: formData.name.trim(),
           description: formData.description.trim() || null,
           location_type: formData.location_type,
           parent_id: formData.parent_id || null,
-        });
+        }).select('id').single();
 
         if (error) throw error;
+        
+        await logSystemEvent({
+          eventType: 'location_created',
+          description: `New location "${formData.name}" was created`,
+          metadata: { locationId: newLocation?.id, locationCode, name: formData.name, type: formData.location_type },
+        });
+        
         toast.success('Location created successfully');
       }
 
@@ -180,6 +196,13 @@ export default function Locations() {
         .eq('id', location.id);
 
       if (error) throw error;
+      
+      await logSystemEvent({
+        eventType: 'location_deleted',
+        description: `Location "${location.name}" was deleted`,
+        metadata: { locationId: location.id, locationCode: location.code, name: location.name, type: location.location_type },
+      });
+      
       toast.success('Location deleted successfully');
       fetchLocations();
     } catch (error) {

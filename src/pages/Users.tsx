@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { logSystemEvent } from '@/lib/systemLogger';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -92,7 +93,7 @@ export default function Users() {
 
   // Update user role mutation
   const updateRoleMutation = useMutation({
-    mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
+    mutationFn: async ({ userId, newRole, username, oldRole }: { userId: string; newRole: AppRole; username: string; oldRole: AppRole | null }) => {
       // First, delete existing role
       const { error: deleteError } = await supabase
         .from('user_roles')
@@ -109,6 +110,13 @@ export default function Users() {
       });
 
       if (insertError) throw insertError;
+
+      // Log role change
+      await logSystemEvent({
+        eventType: 'role_changed',
+        description: `Role changed for ${username}: ${oldRole || 'none'} → ${newRole}`,
+        metadata: { targetUserId: userId, username, oldRole, newRole },
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -122,13 +130,20 @@ export default function Users() {
 
   // Toggle user active status mutation
   const toggleActiveMutation = useMutation({
-    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+    mutationFn: async ({ userId, isActive, username }: { userId: string; isActive: boolean; username: string }) => {
       const { error } = await supabase
         .from('profiles')
         .update({ is_active: isActive })
         .eq('user_id', userId);
 
       if (error) throw error;
+
+      // Log activation/deactivation
+      await logSystemEvent({
+        eventType: isActive ? 'user_activated' : 'user_deactivated',
+        description: `User ${username} was ${isActive ? 'activated' : 'deactivated'}`,
+        metadata: { targetUserId: userId, username, isActive },
+      });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -173,6 +188,8 @@ export default function Users() {
       updateRoleMutation.mutate({
         userId: roleChangeDialog.user.user_id,
         newRole: roleChangeDialog.newRole,
+        username: roleChangeDialog.user.username,
+        oldRole: roleChangeDialog.user.role,
       });
     }
   };
@@ -186,6 +203,7 @@ export default function Users() {
     toggleActiveMutation.mutate({
       userId: targetUser.user_id,
       isActive: !targetUser.is_active,
+      username: targetUser.username,
     });
   };
 
