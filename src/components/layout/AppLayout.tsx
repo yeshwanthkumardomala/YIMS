@@ -48,6 +48,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
+import { InstallPrompt } from '@/components/InstallPrompt';
 import { Badge } from '@/components/ui/badge';
 
 interface AppLayoutProps {
@@ -199,7 +200,8 @@ export function AppLayout({ children }: AppLayoutProps) {
             </SidebarGroup>
           </SidebarContent>
 
-          <SidebarFooter className="border-t border-sidebar-border p-4">
+          <SidebarFooter className="border-t border-sidebar-border p-4 space-y-3">
+            <InstallPrompt />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="w-full justify-start gap-2 px-2">
