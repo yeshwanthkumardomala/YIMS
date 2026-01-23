@@ -143,6 +143,36 @@ export type Database = {
         }
         Relationships: []
       }
+      feature_toggles: {
+        Row: {
+          category: string | null
+          description: string | null
+          enabled: boolean | null
+          id: string
+          key: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          category?: string | null
+          description?: string | null
+          enabled?: boolean | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          category?: string | null
+          description?: string | null
+          enabled?: boolean | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       item_variants: {
         Row: {
           created_at: string
@@ -579,6 +609,33 @@ export type Database = {
           old_values?: Json | null
           request_id?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      system_policies: {
+        Row: {
+          description: string | null
+          id: string
+          key: string
+          updated_at: string | null
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: Json
         }
         Relationships: []
       }
