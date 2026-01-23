@@ -29,6 +29,7 @@ import {
 import {
   LayoutDashboard,
   Package,
+  Tags,
   MapPin,
   ArrowUpDown,
   QrCode,
@@ -51,6 +52,7 @@ interface AppLayoutProps {
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/', roles: ['admin', 'operator', 'student'] },
   { icon: Package, label: 'Items', href: '/items', roles: ['admin', 'operator', 'student'] },
+  { icon: Tags, label: 'Categories', href: '/categories', roles: ['admin', 'operator', 'student'] },
   { icon: MapPin, label: 'Locations', href: '/locations', roles: ['admin', 'operator', 'student'] },
   { icon: ArrowUpDown, label: 'Stock Operations', href: '/stock', roles: ['admin', 'operator', 'student'] },
   { icon: QrCode, label: 'Scan', href: '/scan', roles: ['admin', 'operator', 'student'] },

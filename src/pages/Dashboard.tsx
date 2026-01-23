@@ -15,14 +15,19 @@ import {
   QrCode,
   TrendingUp,
   Clock,
+  BarChart3,
 } from 'lucide-react';
+import { DashboardCharts } from '@/components/dashboard/DashboardCharts';
 import type { DashboardStats, StockTransaction } from '@/types/database';
+import { subDays } from 'date-fns';
 
 export default function Dashboard() {
   const { profile, role, canManageInventory } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentTransactions, setRecentTransactions] = useState<StockTransaction[]>([]);
+  const [chartTransactions, setChartTransactions] = useState<{ id: string; transaction_type: string; quantity: number; created_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCharts, setShowCharts] = useState(true);
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -33,13 +38,6 @@ export default function Dashboard() {
           .select('*', { count: 'exact', head: true })
           .eq('is_active', true);
 
-        // Fetch low stock items count
-        const { data: lowStockData } = await supabase
-          .from('items')
-          .select('id')
-          .eq('is_active', true)
-          .lt('current_stock', supabase.rpc ? 1 : 1); // Will need to compare with minimum_stock
-        
         // For now, count items with stock < minimum_stock
         const { data: allItems } = await supabase
           .from('items')
@@ -70,7 +68,7 @@ export default function Dashboard() {
           recentTransactions: transactionCount || 0,
         });
 
-        // Fetch recent transactions
+        // Fetch recent transactions for display
         const { data: transactions } = await supabase
           .from('stock_transactions')
           .select(`
@@ -81,6 +79,16 @@ export default function Dashboard() {
           .limit(5);
 
         setRecentTransactions((transactions as unknown as StockTransaction[]) || []);
+
+        // Fetch transactions for charts (last 14 days)
+        const twoWeeksAgo = subDays(new Date(), 14);
+        const { data: chartData } = await supabase
+          .from('stock_transactions')
+          .select('id, transaction_type, quantity, created_at')
+          .gte('created_at', twoWeeksAgo.toISOString())
+          .order('created_at', { ascending: true });
+
+        setChartTransactions(chartData || []);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -144,6 +152,14 @@ export default function Dashboard() {
             <QrCode className="mr-2 h-4 w-4" />
             Scan Code
           </Link>
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={() => setShowCharts(!showCharts)}
+          className="ml-auto"
+        >
+          <BarChart3 className="mr-2 h-4 w-4" />
+          {showCharts ? 'Hide Charts' : 'Show Charts'}
         </Button>
       </div>
 
@@ -209,6 +225,11 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Charts Section */}
+      {showCharts && (
+        <DashboardCharts transactions={chartTransactions} loading={loading} />
+      )}
 
       {/* Recent Transactions */}
       <Card>
