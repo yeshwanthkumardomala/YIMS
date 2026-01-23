@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -27,6 +27,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   LayoutDashboard,
   Package,
   Tags,
@@ -45,6 +51,8 @@ import {
   CheckSquare,
   Info,
   BookOpen,
+  Search,
+  Keyboard,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
@@ -52,6 +60,10 @@ import { InstallPrompt } from '@/components/InstallPrompt';
 import { Badge } from '@/components/ui/badge';
 import { QuickAddToolbar } from '@/components/QuickAddToolbar';
 import { useSettings } from '@/hooks/useSettings';
+import { SyncIndicator } from '@/components/SyncIndicator';
+import { KeyboardShortcutsDialog } from '@/components/KeyboardShortcutsDialog';
+import { GlobalSearch } from '@/components/GlobalSearch';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -87,6 +99,14 @@ export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const settings = useSettings();
+  const {
+    showShortcutsDialog,
+    setShowShortcutsDialog,
+    showSearchDialog,
+    setShowSearchDialog,
+    showQuickAddDialog,
+    setShowQuickAddDialog,
+  } = useKeyboardShortcuts();
 
   const handleSignOut = async () => {
     await signOut();
@@ -253,12 +273,61 @@ export function AppLayout({ children }: AppLayoutProps) {
           <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4">
             <SidebarTrigger />
             <div className="flex-1" />
+            
+            {/* Search button */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setShowSearchDialog(true)}
+                  >
+                    <Search className="h-4 w-4" />
+                    <span className="hidden sm:inline">Search</span>
+                    <Badge variant="secondary" className="hidden sm:inline font-mono text-[10px]">
+                      Ctrl+K
+                    </Badge>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Search (Ctrl+K)</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* Keyboard shortcuts button */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowShortcutsDialog(true)}
+                  >
+                    <Keyboard className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Keyboard Shortcuts (Ctrl+/)</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <SyncIndicator />
             <OfflineIndicator />
           </header>
           <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
           {settings.showQuickAddToolbar && <QuickAddToolbar />}
         </SidebarInset>
       </div>
+
+      {/* Global dialogs */}
+      <KeyboardShortcutsDialog
+        open={showShortcutsDialog}
+        onOpenChange={setShowShortcutsDialog}
+      />
+      <GlobalSearch
+        open={showSearchDialog}
+        onOpenChange={setShowSearchDialog}
+      />
     </SidebarProvider>
   );
 }
