@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -64,6 +64,9 @@ import { SyncIndicator } from '@/components/SyncIndicator';
 import { KeyboardShortcutsDialog } from '@/components/KeyboardShortcutsDialog';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { MobileBottomNav } from '@/components/MobileBottomNav';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -99,6 +102,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const settings = useSettings();
+  const isMobile = useIsMobile();
   const {
     showShortcutsDialog,
     setShowShortcutsDialog,
@@ -272,6 +276,12 @@ export function AppLayout({ children }: AppLayoutProps) {
         <SidebarInset className="flex flex-col">
           <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4">
             <SidebarTrigger />
+            
+            {/* Breadcrumbs - hidden on mobile */}
+            <div className="hidden md:block">
+              <Breadcrumbs />
+            </div>
+            
             <div className="flex-1" />
             
             {/* Search button */}
@@ -295,29 +305,34 @@ export function AppLayout({ children }: AppLayoutProps) {
               </Tooltip>
             </TooltipProvider>
 
-            {/* Keyboard shortcuts button */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setShowShortcutsDialog(true)}
-                  >
-                    <Keyboard className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Keyboard Shortcuts (Ctrl+/)</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            {/* Keyboard shortcuts button - hidden on mobile */}
+            {!isMobile && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setShowShortcutsDialog(true)}
+                    >
+                      <Keyboard className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Keyboard Shortcuts (Ctrl+/)</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
 
             <SyncIndicator />
             <OfflineIndicator />
           </header>
-          <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
-          {settings.showQuickAddToolbar && <QuickAddToolbar />}
+          <main className={`flex-1 overflow-auto p-4 md:p-6 ${isMobile ? 'pb-20' : ''}`}>{children}</main>
+          {settings.showQuickAddToolbar && !isMobile && <QuickAddToolbar />}
         </SidebarInset>
       </div>
+
+      {/* Mobile bottom navigation */}
+      <MobileBottomNav onSearchClick={() => setShowSearchDialog(true)} />
 
       {/* Global dialogs */}
       <KeyboardShortcutsDialog
