@@ -19,6 +19,7 @@ export type SystemEventType =
   | 'user_deactivated'
   | 'import_completed'
   | 'export_completed'
+  | 'data_export'
   | 'scan_performed'
   | 'error';
 
@@ -83,6 +84,7 @@ export function getEventTypeLabel(eventType: string): string {
     user_deactivated: 'User Deactivated',
     import_completed: 'Import Completed',
     export_completed: 'Export Completed',
+    data_export: 'Data Export',
     scan_performed: 'Scan Performed',
     error: 'Error',
   };
@@ -112,6 +114,7 @@ export function getEventTypeBadgeVariant(eventType: string): 'default' | 'second
     user_deactivated: 'destructive',
     import_completed: 'default',
     export_completed: 'secondary',
+    data_export: 'secondary',
     scan_performed: 'outline',
     error: 'destructive',
   };
@@ -138,6 +141,7 @@ export const ALL_EVENT_TYPES: SystemEventType[] = [
   'user_deactivated',
   'import_completed',
   'export_completed',
+  'data_export',
   'scan_performed',
   'error',
 ];

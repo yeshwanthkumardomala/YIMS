@@ -61,6 +61,10 @@ import {
 import { FeatureTogglesSection } from '@/components/admin/FeatureTogglesSection';
 import { SystemPoliciesSection } from '@/components/admin/SystemPoliciesSection';
 import { BrandingSection } from '@/components/admin/BrandingSection';
+import { BackupSchedulerSection } from '@/components/admin/BackupSchedulerSection';
+import { DataSharingSection } from '@/components/admin/DataSharingSection';
+import { SystemHealthSection } from '@/components/admin/SystemHealthSection';
+import { SafeModeBanner } from '@/components/SafeModeIndicator';
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
@@ -477,6 +481,20 @@ export default function Settings() {
 
         {/* Data & Storage Tab */}
         <TabsContent value="data" className="space-y-6">
+          <SafeModeBanner />
+          
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Backup Scheduler */}
+            <BackupSchedulerSection />
+
+            {/* Data Sharing */}
+            <DataSharingSection />
+          </div>
+
+          {/* System Health */}
+          <SystemHealthSection />
+
+          {/* Offline Storage Card */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
