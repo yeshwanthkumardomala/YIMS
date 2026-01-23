@@ -50,6 +50,8 @@ import { useTheme } from 'next-themes';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { InstallPrompt } from '@/components/InstallPrompt';
 import { Badge } from '@/components/ui/badge';
+import { QuickAddToolbar } from '@/components/QuickAddToolbar';
+import { useSettings } from '@/hooks/useSettings';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -84,6 +86,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+  const settings = useSettings();
 
   const handleSignOut = async () => {
     await signOut();
@@ -253,6 +256,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <OfflineIndicator />
           </header>
           <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
+          {settings.showQuickAddToolbar && <QuickAddToolbar />}
         </SidebarInset>
       </div>
     </SidebarProvider>

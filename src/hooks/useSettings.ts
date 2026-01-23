@@ -19,6 +19,7 @@ export interface AppSettings {
   itemsPerPage: number;
   showItemCodes: boolean;
   compactMode: boolean;
+  showQuickAddToolbar: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -32,6 +33,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   itemsPerPage: 50,
   showItemCodes: true,
   compactMode: false,
+  showQuickAddToolbar: true,
 };
 
 const STORAGE_KEY = 'yims-settings';
