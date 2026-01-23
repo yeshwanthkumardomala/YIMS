@@ -15,6 +15,19 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          charts: ['recharts'],
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-popover', '@radix-ui/react-select', '@radix-ui/react-tabs'],
+          supabase: ['@supabase/supabase-js'],
+          utils: ['date-fns', 'clsx', 'tailwind-merge'],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     mode === "development" && componentTagger(),
@@ -26,6 +39,7 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,woff,ttf}"],
         navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/api/],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB limit
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
