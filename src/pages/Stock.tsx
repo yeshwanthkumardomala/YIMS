@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation as useRouterLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -18,16 +19,24 @@ import { toast } from 'sonner';
 import { ArrowDownToLine, ArrowUpFromLine, AlertTriangle, Loader2, Package } from 'lucide-react';
 import type { Item, Location } from '@/types/database';
 
+interface RouterState {
+  itemId?: string;
+  action?: 'stock_in' | 'stock_out';
+}
+
 export default function Stock() {
   const { user } = useAuth();
+  const routerLocation = useRouterLocation();
+  const state = routerLocation.state as RouterState | null;
+  
   const [items, setItems] = useState<Item[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'stock_in' | 'stock_out'>('stock_in');
+  const [activeTab, setActiveTab] = useState<'stock_in' | 'stock_out'>(state?.action || 'stock_in');
 
   const [formData, setFormData] = useState({
-    item_id: '',
+    item_id: state?.itemId || '',
     quantity: 1,
     location_id: '',
     notes: '',
@@ -63,6 +72,17 @@ export default function Stock() {
       setLoading(false);
     }
   }
+
+  // Pre-select item from navigation state
+  useEffect(() => {
+    if (state?.itemId && items.length > 0) {
+      const item = items.find((i) => i.id === state.itemId);
+      if (item) {
+        setSelectedItem(item);
+        setFormData((prev) => ({ ...prev, item_id: state.itemId || '' }));
+      }
+    }
+  }, [state?.itemId, items]);
 
   function handleItemChange(itemId: string) {
     const item = items.find((i) => i.id === itemId);
