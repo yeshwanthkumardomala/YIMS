@@ -28,14 +28,14 @@ export function useOfflineLocations() {
       try {
         const code = await offlineDb.generateLocationCode(location.locationType);
         const now = new Date();
-        await offlineDb.locations.add({
+        const id = await offlineDb.locations.add({
           ...location,
           code,
           createdAt: now,
           updatedAt: now,
         });
         await fetchLocations();
-        return { success: true, code };
+        return { success: true, code, id };
       } catch (err) {
         return { success: false, error: err instanceof Error ? err.message : 'Failed to create location' };
       }

@@ -18,6 +18,8 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { DashboardCharts } from '@/components/dashboard/DashboardCharts';
+import { QuickStartWizard } from '@/components/onboarding/QuickStartWizard';
+import { useQuickStartWizard } from '@/hooks/useQuickStartWizard';
 import type { DashboardStats, StockTransaction } from '@/types/database';
 import { subDays } from 'date-fns';
 
@@ -28,6 +30,17 @@ export default function Dashboard() {
   const [chartTransactions, setChartTransactions] = useState<{ id: string; transaction_type: string; quantity: number; created_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCharts, setShowCharts] = useState(true);
+  
+  // Quick-start wizard
+  const { shouldShowWizard, isLoading: wizardLoading, markWizardComplete } = useQuickStartWizard();
+  const [wizardOpen, setWizardOpen] = useState(false);
+
+  // Show wizard when data loads and user is first-time
+  useEffect(() => {
+    if (!wizardLoading && shouldShowWizard) {
+      setWizardOpen(true);
+    }
+  }, [wizardLoading, shouldShowWizard]);
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -122,8 +135,15 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Header */}
+    <>
+      {/* Quick Start Wizard for first-time users */}
+      <QuickStartWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        onComplete={markWizardComplete}
+      />
+      
+      <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">
           Welcome back, {profile?.full_name || profile?.username}
@@ -295,5 +315,6 @@ export default function Dashboard() {
         </CardContent>
       </Card>
     </div>
+    </>
   );
 }

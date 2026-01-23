@@ -27,13 +27,13 @@ export function useOfflineCategories() {
     async (category: Omit<OfflineCategory, 'id' | 'createdAt' | 'updatedAt'>) => {
       try {
         const now = new Date();
-        await offlineDb.categories.add({
+        const id = await offlineDb.categories.add({
           ...category,
           createdAt: now,
           updatedAt: now,
         });
         await fetchCategories();
-        return { success: true };
+        return { success: true, id };
       } catch (err) {
         return { success: false, error: err instanceof Error ? err.message : 'Failed to create category' };
       }
