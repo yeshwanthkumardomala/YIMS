@@ -1,6 +1,6 @@
 // YIMS Database Types
 
-export type AppRole = 'admin' | 'operator' | 'student';
+export type AppRole = 'super_admin' | 'admin' | 'lab_manager' | 'operator' | 'student' | 'auditor';
 export type LocationType = 'building' | 'room' | 'shelf' | 'box' | 'drawer';
 export type TransactionType = 'stock_in' | 'stock_out' | 'adjustment';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';

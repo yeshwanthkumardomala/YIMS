@@ -107,6 +107,42 @@ export type Database = {
           },
         ]
       }
+      branding_settings: {
+        Row: {
+          app_name: string | null
+          favicon_url: string | null
+          id: string
+          logo_url: string | null
+          primary_color: string | null
+          tagline: string | null
+          updated_at: string | null
+          updated_by: string | null
+          version: number | null
+        }
+        Insert: {
+          app_name?: string | null
+          favicon_url?: string | null
+          id?: string
+          logo_url?: string | null
+          primary_color?: string | null
+          tagline?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          version?: number | null
+        }
+        Update: {
+          app_name?: string | null
+          favicon_url?: string | null
+          id?: string
+          logo_url?: string | null
+          primary_color?: string | null
+          tagline?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          version?: number | null
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           color: string | null
@@ -459,6 +495,30 @@ export type Database = {
           identifier?: string
           request_count?: number | null
           window_start?: string
+        }
+        Relationships: []
+      }
+      role_permissions: {
+        Row: {
+          created_at: string | null
+          granted: boolean | null
+          id: string
+          permission: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          created_at?: string | null
+          granted?: boolean | null
+          id?: string
+          permission: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          created_at?: string | null
+          granted?: boolean | null
+          id?: string
+          permission?: string
+          role?: Database["public"]["Enums"]["app_role"]
         }
         Relationships: []
       }
@@ -828,6 +888,10 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      has_permission: {
+        Args: { _permission: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -857,7 +921,13 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "operator" | "student"
+      app_role:
+        | "admin"
+        | "operator"
+        | "student"
+        | "super_admin"
+        | "lab_manager"
+        | "auditor"
       location_type: "building" | "room" | "shelf" | "box" | "drawer"
       transaction_type: "stock_in" | "stock_out" | "adjustment"
     }
@@ -987,7 +1057,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "operator", "student"],
+      app_role: [
+        "admin",
+        "operator",
+        "student",
+        "super_admin",
+        "lab_manager",
+        "auditor",
+      ],
       location_type: ["building", "room", "shelf", "box", "drawer"],
       transaction_type: ["stock_in", "stock_out", "adjustment"],
     },
