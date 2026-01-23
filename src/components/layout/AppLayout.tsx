@@ -41,6 +41,8 @@ import {
   Sun,
   FileSpreadsheet,
   Shield,
+  FileText,
+  CheckSquare,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +63,8 @@ const menuItems = [
 
 const adminItems = [
   { icon: FileSpreadsheet, label: 'Import/Export', href: '/import-export', roles: ['admin'] },
+  { icon: FileText, label: 'Reports', href: '/reports', roles: ['admin'] },
+  { icon: CheckSquare, label: 'Approvals', href: '/approvals', roles: ['admin'] },
   { icon: Users, label: 'Users', href: '/users', roles: ['admin'] },
   { icon: Shield, label: 'System Logs', href: '/logs', roles: ['admin'] },
   { icon: Settings, label: 'Settings', href: '/settings', roles: ['admin'] },
