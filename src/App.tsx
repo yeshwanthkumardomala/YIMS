@@ -10,6 +10,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Items from "./pages/Items";
+import Categories from "./pages/Categories";
 import Locations from "./pages/Locations";
 import Stock from "./pages/Stock";
 import Scan from "./pages/Scan";
@@ -50,6 +51,16 @@ const App = () => (
                   <ProtectedRoute>
                     <AppLayout>
                       <Items />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/categories"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <Categories />
                     </AppLayout>
                   </ProtectedRoute>
                 }

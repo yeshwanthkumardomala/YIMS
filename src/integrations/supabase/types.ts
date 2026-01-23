@@ -16,22 +16,37 @@ export type Database = {
     Tables: {
       categories: {
         Row: {
+          color: string | null
           created_at: string
+          created_by: string | null
           description: string | null
+          icon: string | null
           id: string
+          is_active: boolean
           name: string
+          updated_at: string
         }
         Insert: {
+          color?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
+          icon?: string | null
           id?: string
+          is_active?: boolean
           name: string
+          updated_at?: string
         }
         Update: {
+          color?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
+          icon?: string | null
           id?: string
+          is_active?: boolean
           name?: string
+          updated_at?: string
         }
         Relationships: []
       }
