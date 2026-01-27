@@ -531,7 +531,7 @@ export type Database = {
           id: string
           item_id: string | null
           location_id: string | null
-          scanned_by: string
+          scanned_by: string | null
         }
         Insert: {
           action_taken?: string | null
@@ -541,7 +541,7 @@ export type Database = {
           id?: string
           item_id?: string | null
           location_id?: string | null
-          scanned_by: string
+          scanned_by?: string | null
         }
         Update: {
           action_taken?: string | null
@@ -551,7 +551,7 @@ export type Database = {
           id?: string
           item_id?: string | null
           location_id?: string | null
-          scanned_by?: string
+          scanned_by?: string | null
         }
         Relationships: [
           {
