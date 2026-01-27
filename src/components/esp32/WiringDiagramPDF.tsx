@@ -124,8 +124,8 @@ const WiringDiagramDocument = () => (
   <Document>
     <Page size="A4" style={styles.page}>
       {/* Header */}
-      <Text style={styles.header}>YIMS ESP32-CAM Wiring Diagram</Text>
-      <Text style={styles.subheader}>ESP32-CAM + Motherboard + LCD Display + Status LEDs</Text>
+<Text style={styles.header}>YIMS ESP32-CAM Wiring Diagram</Text>
+      <Text style={styles.subheader}>ESP32-CAM + Motherboard + LCD Display + Status LEDs + Buzzer</Text>
 
       {/* Components Required */}
       <View style={styles.section}>
@@ -150,6 +150,10 @@ const WiringDiagramDocument = () => (
           <View style={styles.componentItem}>
             <Text style={styles.bullet}>•</Text>
             <Text>220Ω Resistors (3x for LEDs)</Text>
+          </View>
+          <View style={styles.componentItem}>
+            <Text style={styles.bullet}>•</Text>
+            <Text>Passive Buzzer/Speaker (3-5V)</Text>
           </View>
           <View style={styles.componentItem}>
             <Text style={styles.bullet}>•</Text>
@@ -187,6 +191,11 @@ const WiringDiagramDocument = () => (
             <Text style={styles.tableCell}>Error indicator</Text>
           </View>
           <View style={styles.tableRow}>
+            <Text style={styles.tableCell}>GPIO 16</Text>
+            <Text style={styles.tableCell}>Buzzer (+)</Text>
+            <Text style={styles.tableCell}>Audio feedback</Text>
+          </View>
+          <View style={styles.tableRow}>
             <Text style={styles.tableCell}>GPIO 14</Text>
             <Text style={styles.tableCell}>LCD SDA</Text>
             <Text style={styles.tableCell}>I2C Data</Text>
@@ -198,7 +207,7 @@ const WiringDiagramDocument = () => (
           </View>
           <View style={styles.tableRow}>
             <Text style={styles.tableCell}>GND</Text>
-            <Text style={styles.tableCell}>LEDs (-), LCD GND</Text>
+            <Text style={styles.tableCell}>LEDs (-), LCD GND, Buzzer (-)</Text>
             <Text style={styles.tableCell}>Ground</Text>
           </View>
           <View style={styles.tableRow}>
@@ -231,35 +240,36 @@ const WiringDiagramDocument = () => (
           ├── GPIO 12 ──[220Ω]── Yellow LED (+)
           ├── GPIO 13 ──[220Ω]── Blue LED (+)
           ├── GPIO 15 ──[220Ω]── Red LED (+)
+          ├── GPIO 16 ────────── Buzzer (+)
           │
           ├── GPIO 14 ────────── LCD SDA
           ├── GPIO 2  ────────── LCD SCL
           │
-          ├── GND ────────────── LED(-) / LCD GND
+          ├── GND ────────────── LED(-) / LCD GND / Buzzer(-)
           └── 5V ─────────────── LCD VCC`}
           </Text>
         </View>
       </View>
 
-      {/* LED Indicators */}
+      {/* LED and Audio Indicators */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>LED Status Indicators</Text>
+        <Text style={styles.sectionTitle}>LED & Audio Feedback</Text>
         <View style={styles.ledSection}>
           <View style={styles.ledItem}>
             <View style={[styles.ledDot, { backgroundColor: '#eab308' }]} />
-            <Text>Yellow ON = Processing scan</Text>
+            <Text>Yellow ON = Processing</Text>
           </View>
           <View style={styles.ledItem}>
             <View style={[styles.ledDot, { backgroundColor: '#3b82f6' }]} />
-            <Text>Blue (2 blinks) = Success</Text>
+            <Text>Blue (2x) + Beep = Success</Text>
           </View>
           <View style={styles.ledItem}>
             <View style={[styles.ledDot, { backgroundColor: '#ef4444' }]} />
-            <Text>Red (3 blinks) = Error</Text>
+            <Text>Red (3x) + Long Beep = Error</Text>
           </View>
           <View style={styles.ledItem}>
             <View style={[styles.ledDot, { backgroundColor: '#f97316' }]} />
-            <Text>Yellow+Red Alternate = Low Stock</Text>
+            <Text>Y+R Alt + Double Beep = Low Stock</Text>
           </View>
         </View>
       </View>
@@ -269,7 +279,8 @@ const WiringDiagramDocument = () => (
         <Text style={styles.noteTitle}>Important Notes:</Text>
         <Text style={styles.noteText}>
           • Always use 220Ω resistors between GPIO pins and LED positive legs{'\n'}
-          • Connect all LED negative legs to GND{'\n'}
+          • Connect all LED negative legs and buzzer (-) to GND{'\n'}
+          • Use passive buzzer (not active) for tone control via GPIO 16{'\n'}
           • LCD must have I2C backpack module (default address: 0x27 or 0x3F){'\n'}
           • The motherboard has built-in USB-to-Serial - no FTDI needed{'\n'}
           • Press IO0 button while pressing RST to enter programming mode
