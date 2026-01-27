@@ -22,28 +22,40 @@ import {
   MapPin,
   IndianRupee,
   ShieldCheck,
+  Download,
+  FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { ESP32AdminDashboard } from '@/components/esp32/ESP32AdminDashboard';
+import { generateWiringDiagramPDF } from '@/components/esp32/WiringDiagramPDF';
 
 const SUPABASE_PROJECT_ID = 'cejaafrdxajcjyutettr';
 
 const arduinoCode = `/*
  * YIMS ESP32-CAM QR Code Scanner
+ * Enhanced Version with LCD Display & Status LEDs
  * 
  * This code scans QR codes and sends them to YIMS server
- * for instant item/location lookup.
+ * for instant item/location lookup. Results are displayed
+ * on an I2C LCD and indicated via colored status LEDs.
  * 
- * Hardware: ESP32-CAM AI-Thinker
+ * Hardware:
+ *   - ESP32-CAM AI-Thinker + Motherboard
+ *   - I2C LCD Display (16x2 or 20x4)
+ *   - Status LEDs: Yellow (GPIO 12), Blue (GPIO 13), Red (GPIO 15)
+ * 
  * Libraries required:
  *   - ESP32QRCodeReader (by alvarowolfx)
  *   - ArduinoJson (by Benoit Blanchon)
+ *   - LiquidCrystal_I2C (by Marco Schwartz)
  */
 
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
 #include "ESP32QRCodeReader.h"
 
 // ============================================
@@ -59,12 +71,23 @@ const char* SERVER_URL = "https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v
 // ============================================
 // PIN DEFINITIONS
 // ============================================
-#define FLASH_LED_PIN 4   // Built-in flash LED on ESP32-CAM
+#define FLASH_LED_PIN 4    // Built-in flash LED on ESP32-CAM
+#define LED_YELLOW    12   // Yellow LED - Scanning/Processing
+#define LED_BLUE      13   // Blue LED - Success/Found
+#define LED_RED       15   // Red LED - Error/Low Stock
+
+// I2C LCD Configuration
+#define LCD_SDA       14   // I2C Data pin
+#define LCD_SCL       2    // I2C Clock pin
+#define LCD_ADDRESS   0x27 // Common I2C address (try 0x3F if not working)
+#define LCD_COLS      16   // LCD columns (16 or 20)
+#define LCD_ROWS      2    // LCD rows (2 or 4)
 
 // ============================================
 // GLOBAL VARIABLES
 // ============================================
 ESP32QRCodeReader reader(CAMERA_MODEL_AI_THINKER);
+LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLS, LCD_ROWS);
 bool wifiConnected = false;
 unsigned long lastScanTime = 0;
 const unsigned long SCAN_COOLDOWN = 3000; // 3 seconds between scans
@@ -77,28 +100,50 @@ void setup() {
   Serial.println();
   Serial.println("========================================");
   Serial.println("   YIMS ESP32-CAM QR Code Scanner");
+  Serial.println("   Enhanced with LCD & Status LEDs");
   Serial.println("========================================");
   
-  // Initialize flash LED
+  // Initialize LEDs
   pinMode(FLASH_LED_PIN, OUTPUT);
-  digitalWrite(FLASH_LED_PIN, LOW);
+  pinMode(LED_YELLOW, OUTPUT);
+  pinMode(LED_BLUE, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
+  
+  allLedsOff();
+  
+  // Initialize I2C for LCD
+  Wire.begin(LCD_SDA, LCD_SCL);
+  lcd.init();
+  lcd.backlight();
+  
+  // Show startup message on LCD
+  lcdPrint("YIMS Scanner", "Initializing...");
   
   // Connect to WiFi
+  digitalWrite(LED_YELLOW, HIGH); // Yellow = connecting
   connectWiFi();
+  digitalWrite(LED_YELLOW, LOW);
+  
+  if (wifiConnected) {
+    lcdPrint("WiFi Connected!", WiFi.localIP().toString().c_str());
+    blinkSuccess();
+    delay(1500);
+  } else {
+    lcdPrint("WiFi FAILED!", "Check settings");
+    blinkError();
+    delay(2000);
+  }
   
   // Initialize camera
+  lcdPrint("Starting camera", "Please wait...");
   Serial.println("Initializing camera...");
   reader.setup();
   reader.beginOnCore(1);
   Serial.println("Camera initialized!");
   
-  // Flash LED 3 times to indicate ready
-  for (int i = 0; i < 3; i++) {
-    digitalWrite(FLASH_LED_PIN, HIGH);
-    delay(100);
-    digitalWrite(FLASH_LED_PIN, LOW);
-    delay(100);
-  }
+  // Ready state
+  lcdPrint("YIMS Ready!", "Scan QR code...");
+  blinkReady();
   
   Serial.println("Ready to scan QR codes!");
   Serial.println("----------------------------------------");
@@ -111,7 +156,13 @@ void loop() {
   // Check WiFi connection
   if (WiFi.status() != WL_CONNECTED) {
     wifiConnected = false;
+    lcdPrint("WiFi Lost!", "Reconnecting...");
+    digitalWrite(LED_RED, HIGH);
     connectWiFi();
+    digitalWrite(LED_RED, LOW);
+    if (wifiConnected) {
+      lcdPrint("YIMS Ready!", "Scan QR code...");
+    }
   }
   
   // Try to read QR code
@@ -129,10 +180,19 @@ void loop() {
         Serial.print("QR Code detected: ");
         Serial.println(code);
         
+        // Show scanning indicator
+        digitalWrite(LED_YELLOW, HIGH);
+        lcdPrint("Scanning...", code.substring(0, LCD_COLS).c_str());
+        
         // Send to YIMS server
         sendToYIMS(code);
         
+        digitalWrite(LED_YELLOW, LOW);
         Serial.println("========================================");
+        
+        // Return to ready state after 3 seconds
+        delay(3000);
+        lcdPrint("YIMS Ready!", "Scan QR code...");
       }
     }
   }
@@ -144,6 +204,7 @@ void loop() {
 void connectWiFi() {
   Serial.print("Connecting to WiFi: ");
   Serial.println(WIFI_SSID);
+  lcdPrint("Connecting WiFi", WIFI_SSID);
   
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -172,6 +233,7 @@ void connectWiFi() {
 void sendToYIMS(String code) {
   if (!wifiConnected) {
     Serial.println("ERROR: WiFi not connected");
+    lcdPrint("ERROR!", "No WiFi");
     blinkError();
     return;
   }
@@ -190,6 +252,7 @@ void sendToYIMS(String code) {
   serializeJson(doc, payload);
   
   Serial.print("Sending to server... ");
+  lcdPrint("Sending...", "Please wait");
   
   // Send POST request
   int httpCode = http.POST(payload);
@@ -214,45 +277,67 @@ void sendToYIMS(String code) {
         Serial.println(type);
         
         if (strcmp(type, "item") == 0) {
-          Serial.print("Name: ");
-          Serial.println(data["name"].as<const char*>());
-          Serial.print("Stock: ");
-          Serial.print(data["current_stock"].as<int>());
-          Serial.print(" ");
-          Serial.println(data["unit"].as<const char*>());
-          
+          const char* name = data["name"].as<const char*>();
           int stock = data["current_stock"].as<int>();
           int minStock = data["minimum_stock"].as<int>();
+          const char* unit = data["unit"].as<const char*>();
+          
+          Serial.print("Name: ");
+          Serial.println(name);
+          Serial.print("Stock: ");
+          Serial.print(stock);
+          Serial.print(" ");
+          Serial.println(unit);
+          
+          // Format stock display
+          char stockStr[17];
+          snprintf(stockStr, sizeof(stockStr), "Stock: %d %s", stock, unit);
           
           if (stock <= 0) {
             Serial.println("STATUS: OUT OF STOCK!");
-            blinkWarning();
+            lcdPrint(name, "OUT OF STOCK!");
+            blinkError();
           } else if (stock <= minStock) {
             Serial.println("STATUS: LOW STOCK");
+            lcdPrint(name, "LOW STOCK!");
             blinkWarning();
           } else {
+            lcdPrint(name, stockStr);
             blinkSuccess();
           }
         } else {
+          // Location type
+          const char* name = data["name"].as<const char*>();
+          const char* locType = data["location_type"].as<const char*>();
+          
           Serial.print("Location: ");
-          Serial.println(data["name"].as<const char*>());
+          Serial.println(name);
           Serial.print("Type: ");
-          Serial.println(data["location_type"].as<const char*>());
+          Serial.println(locType);
+          
+          char typeStr[17];
+          snprintf(typeStr, sizeof(typeStr), "Type: %s", locType);
+          lcdPrint(name, typeStr);
           blinkSuccess();
         }
       } else {
         const char* errorMsg = responseDoc["error"];
         Serial.print("Error: ");
         Serial.println(errorMsg);
+        lcdPrint("Not Found!", errorMsg);
         blinkError();
       }
     } else {
       Serial.println("JSON parse error");
+      lcdPrint("ERROR!", "Parse failed");
       blinkError();
     }
   } else {
     Serial.print("HTTP Error: ");
     Serial.println(httpCode);
+    char errStr[17];
+    snprintf(errStr, sizeof(errStr), "Code: %d", httpCode);
+    lcdPrint("HTTP Error!", errStr);
     blinkError();
   }
   
@@ -260,38 +345,74 @@ void sendToYIMS(String code) {
 }
 
 // ============================================
-// LED FEEDBACK FUNCTIONS
+// LCD DISPLAY FUNCTIONS
 // ============================================
+void lcdPrint(const char* line1, const char* line2) {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(line1);
+  if (line2 != NULL && LCD_ROWS >= 2) {
+    lcd.setCursor(0, 1);
+    lcd.print(line2);
+  }
+}
+
+// ============================================
+// LED CONTROL FUNCTIONS
+// ============================================
+void allLedsOff() {
+  digitalWrite(FLASH_LED_PIN, LOW);
+  digitalWrite(LED_YELLOW, LOW);
+  digitalWrite(LED_BLUE, LOW);
+  digitalWrite(LED_RED, LOW);
+}
+
+void blinkReady() {
+  // All LEDs blink once to indicate ready
+  digitalWrite(LED_YELLOW, HIGH);
+  digitalWrite(LED_BLUE, HIGH);
+  digitalWrite(LED_RED, HIGH);
+  delay(200);
+  allLedsOff();
+  delay(200);
+  digitalWrite(LED_BLUE, HIGH);
+  delay(200);
+  digitalWrite(LED_BLUE, LOW);
+}
+
 void blinkSuccess() {
-  // 2 quick blinks = success
+  // Blue LED blinks 2 times = success/found
   for (int i = 0; i < 2; i++) {
-    digitalWrite(FLASH_LED_PIN, HIGH);
-    delay(100);
-    digitalWrite(FLASH_LED_PIN, LOW);
-    delay(100);
+    digitalWrite(LED_BLUE, HIGH);
+    delay(150);
+    digitalWrite(LED_BLUE, LOW);
+    delay(150);
   }
 }
 
 void blinkError() {
-  // 5 rapid blinks = error
-  for (int i = 0; i < 5; i++) {
-    digitalWrite(FLASH_LED_PIN, HIGH);
-    delay(50);
-    digitalWrite(FLASH_LED_PIN, LOW);
-    delay(50);
+  // Red LED blinks 3 times = error
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(LED_RED, HIGH);
+    delay(100);
+    digitalWrite(LED_RED, LOW);
+    delay(100);
   }
 }
 
 void blinkWarning() {
-  // 3 slow blinks = warning (low stock)
+  // Yellow + Red alternate = low stock warning
   for (int i = 0; i < 3; i++) {
-    digitalWrite(FLASH_LED_PIN, HIGH);
-    delay(300);
-    digitalWrite(FLASH_LED_PIN, LOW);
-    delay(300);
+    digitalWrite(LED_YELLOW, HIGH);
+    digitalWrite(LED_RED, LOW);
+    delay(200);
+    digitalWrite(LED_YELLOW, LOW);
+    digitalWrite(LED_RED, HIGH);
+    delay(200);
   }
+  digitalWrite(LED_RED, LOW);
 }
-`.replace('${SUPABASE_PROJECT_ID}', SUPABASE_PROJECT_ID);
+`.replace('\${SUPABASE_PROJECT_ID}', SUPABASE_PROJECT_ID);
 
 export default function ESP32Integration() {
   const [copiedCode, setCopiedCode] = useState(false);
@@ -305,6 +426,18 @@ export default function ESP32Integration() {
       setTimeout(() => setCopiedCode(false), 2000);
     } catch (err) {
       toast.error('Failed to copy code');
+    }
+  };
+
+  const downloadWiringPDF = async () => {
+    try {
+      toast.loading('Generating PDF...');
+      await generateWiringDiagramPDF();
+      toast.dismiss();
+      toast.success('Wiring diagram PDF downloaded!');
+    } catch (err) {
+      toast.dismiss();
+      toast.error('Failed to generate PDF');
     }
   };
 
@@ -595,6 +728,14 @@ export default function ESP32Integration() {
                     </ul>
                   </AlertDescription>
                 </Alert>
+
+                {/* Download PDF Button */}
+                <div className="flex justify-center pt-4">
+                  <Button onClick={downloadWiringPDF} variant="default" size="lg" className="gap-2">
+                    <Download className="h-5 w-5" />
+                    Download Wiring Diagram PDF
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -685,6 +826,9 @@ export default function ESP32Integration() {
                         <li>
                           <strong>ArduinoJson</strong> by Benoit Blanchon
                         </li>
+                        <li>
+                          <strong>LiquidCrystal_I2C</strong> by Marco Schwartz (for LCD display)
+                        </li>
                       </ul>
                     </div>
                   </div>
@@ -753,19 +897,40 @@ export default function ESP32Integration() {
                 </ScrollArea>
 
                 <div className="mt-4 p-4 rounded-lg bg-muted/50">
-                  <h4 className="font-medium mb-2">LED Feedback Patterns</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-green-500" />
-                      <span>2 quick blinks = Success</span>
-                    </div>
+                  <h4 className="font-medium mb-2">LED Status Indicators</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                      <span>3 slow blinks = Low stock warning</span>
+                      <span>Yellow = Processing</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-blue-500" />
+                      <span>Blue (2x) = Success</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-red-500" />
-                      <span>5 rapid blinks = Error</span>
+                      <span>Red (3x) = Error</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-0.5">
+                        <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                        <div className="w-3 h-3 rounded-full bg-red-500" />
+                      </div>
+                      <span>Alternate = Low Stock</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-4 rounded-lg bg-muted/50">
+                  <h4 className="font-medium mb-2">LCD Display Messages</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div className="p-2 bg-background rounded border font-mono text-xs">
+                      <div>Line 1: Item Name</div>
+                      <div>Line 2: Stock: 25 pcs</div>
+                    </div>
+                    <div className="p-2 bg-background rounded border font-mono text-xs">
+                      <div>Line 1: Location Name</div>
+                      <div>Line 2: Type: shelf</div>
                     </div>
                   </div>
                 </div>
