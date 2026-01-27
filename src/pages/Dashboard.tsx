@@ -173,6 +173,12 @@ export default function Dashboard() {
             Scan Code
           </Link>
         </Button>
+        <Button asChild variant="outline">
+          <Link to="/esp32-integration">
+            <QrCode className="mr-2 h-4 w-4" />
+            ESP32 Scanner
+          </Link>
+        </Button>
         <Button
           variant="ghost"
           onClick={() => setShowCharts(!showCharts)}
