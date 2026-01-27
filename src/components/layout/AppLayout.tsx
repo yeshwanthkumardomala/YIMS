@@ -53,6 +53,7 @@ import {
   BookOpen,
   Search,
   Keyboard,
+  Cpu,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
@@ -93,6 +94,7 @@ const adminItems = [
 
 const helpItems = [
   { icon: BookOpen, label: 'How to Use', href: '/how-to-use' },
+  { icon: Cpu, label: 'ESP32 Scanner', href: '/esp32-integration' },
   { icon: Info, label: 'About', href: '/about' },
 ];
 
