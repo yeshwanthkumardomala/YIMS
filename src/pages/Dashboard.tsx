@@ -16,8 +16,10 @@ import {
   TrendingUp,
   Clock,
   BarChart3,
+  Cpu,
 } from 'lucide-react';
 import { DashboardCharts } from '@/components/dashboard/DashboardCharts';
+import { RecentESP32Scans } from '@/components/dashboard/RecentESP32Scans';
 import { QuickStartWizard } from '@/components/onboarding/QuickStartWizard';
 import { useQuickStartWizard } from '@/hooks/useQuickStartWizard';
 import type { DashboardStats, StockTransaction } from '@/types/database';
@@ -175,7 +177,7 @@ export default function Dashboard() {
         </Button>
         <Button asChild variant="outline">
           <Link to="/esp32-integration">
-            <QrCode className="mr-2 h-4 w-4" />
+            <Cpu className="mr-2 h-4 w-4" />
             ESP32 Scanner
           </Link>
         </Button>
@@ -256,6 +258,9 @@ export default function Dashboard() {
       {showCharts && (
         <DashboardCharts transactions={chartTransactions} loading={loading} />
       )}
+
+      {/* ESP32 Scanner Widget */}
+      <RecentESP32Scans />
 
       {/* Recent Transactions */}
       <Card>
