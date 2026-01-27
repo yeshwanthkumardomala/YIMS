@@ -310,18 +310,22 @@ export default function ESP32Integration() {
 
   const hardwareItems = [
     { name: 'ESP32-CAM AI-Thinker Module', price: '₹500-800', required: true },
-    { name: 'FTDI USB-to-Serial Programmer', price: '₹100-200', required: true },
-    { name: 'Female-to-Female Jumper Wires (5 pcs)', price: '₹50-100', required: true },
+    { name: 'ESP32-CAM Motherboard (MB)', price: '₹150-250', required: true },
+    { name: 'I2C LCD Display (16x2 or 20x4)', price: '₹150-300', required: false },
+    { name: 'LED Kit (Yellow, Blue, Red)', price: '₹30-50', required: false },
     { name: 'Micro USB Cable', price: '₹50-100', required: true },
     { name: '5V Power Supply or USB Power Bank', price: '₹100-300', required: false },
   ];
 
   const wiringConnections = [
-    { esp32: '5V', ftdi: 'VCC (5V)', color: 'text-red-500' },
-    { esp32: 'GND', ftdi: 'GND', color: 'text-foreground' },
-    { esp32: 'U0R', ftdi: 'TX', color: 'text-green-500' },
-    { esp32: 'U0T', ftdi: 'RX', color: 'text-yellow-500' },
-    { esp32: 'IO0', ftdi: 'GND (only during upload!)', color: 'text-orange-500' },
+    { esp32: 'ESP32-CAM', ftdi: 'Motherboard Slot', color: 'text-primary' },
+    { esp32: 'GPIO 12', ftdi: 'Yellow LED (+)', color: 'text-yellow-500' },
+    { esp32: 'GPIO 13', ftdi: 'Blue LED (+)', color: 'text-blue-500' },
+    { esp32: 'GPIO 15', ftdi: 'Red LED (+)', color: 'text-red-500' },
+    { esp32: 'GPIO 14 (SDA)', ftdi: 'LCD SDA', color: 'text-green-500' },
+    { esp32: 'GPIO 2 (SCL)', ftdi: 'LCD SCL', color: 'text-cyan-500' },
+    { esp32: 'GND', ftdi: 'LED (-) / LCD GND', color: 'text-muted-foreground' },
+    { esp32: '5V', ftdi: 'LCD VCC', color: 'text-red-500' },
   ];
 
   const troubleshootingItems = [
@@ -498,7 +502,7 @@ export default function ESP32Integration() {
                   <AlertTitle>Where to Buy</AlertTitle>
                   <AlertDescription>
                     These components are available on Amazon, Flipkart, Robu.in, or local
-                    electronics stores. Search for "ESP32-CAM" and "FTDI programmer".
+                    electronics stores. Search for "ESP32-CAM Motherboard" for the all-in-one programmer board.
                   </AlertDescription>
                 </Alert>
               </CardContent>
@@ -514,7 +518,7 @@ export default function ESP32Integration() {
                   Wiring Diagram
                 </CardTitle>
                 <CardDescription>
-                  Connect ESP32-CAM to FTDI programmer for uploading code
+                  Connect ESP32-CAM to Motherboard, LCD display, and status LEDs
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -543,38 +547,51 @@ export default function ESP32Integration() {
                     <h4 className="font-medium mb-3 text-center">Visual Reference</h4>
                     <pre className="text-xs font-mono leading-relaxed">
 {`
-  ESP32-CAM         FTDI Programmer
-  ─────────         ───────────────
+   ESP32-CAM Motherboard Setup
+   ───────────────────────────
       
-   ┌───────┐         ┌───────┐
-   │  CAM  │         │  USB  │
-   │       │         │       │
-   │ 5V  ●─┼─────────┼─● VCC │
-   │ GND ●─┼─────────┼─● GND │
-   │ U0R ●─┼─────────┼─● TX  │
-   │ U0T ●─┼─────────┼─● RX  │
-   │ IO0 ●─┼────┐    │       │
-   │       │    │    │       │
-   └───────┘    └────┼─● GND │
-                     └───────┘
-   
-   * IO0 to GND only during upload!
-   * Remove IO0 wire after uploading
+   ┌─────────────────────────┐
+   │   ESP32-CAM-MB Board    │
+   │  ┌───────────────────┐  │
+   │  │    ESP32-CAM      │  │
+   │  │   (plugs in here) │  │
+   │  └───────────────────┘  │
+   │   [USB]    [RST] [IO0]  │
+   └─────────────────────────┘
+         │
+         │ GPIO Connections:
+         │
+         ├── GPIO 12 ── Yellow LED (+)
+         ├── GPIO 13 ── Blue LED (+)
+         ├── GPIO 15 ── Red LED (+)
+         ├── GPIO 14 ── LCD SDA
+         ├── GPIO 2  ── LCD SCL
+         ├── GND ───── LED(-) / LCD GND
+         └── 5V ────── LCD VCC
 `}
                     </pre>
                   </div>
                 </div>
 
-                <Alert variant="destructive">
+                <Alert className="border-primary/20 bg-primary/5">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertTitle>ESP32-CAM Motherboard Advantage</AlertTitle>
+                  <AlertDescription>
+                    The motherboard eliminates complex FTDI wiring. Simply plug the ESP32-CAM into the slot, 
+                    connect USB, and upload code directly. The IO0 button handles programming mode automatically!
+                  </AlertDescription>
+                </Alert>
+
+                <Alert>
                   <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Important!</AlertTitle>
+                  <AlertTitle>LED Wiring Notes</AlertTitle>
                   <AlertDescription>
                     <ul className="list-disc list-inside mt-2 space-y-1">
                       <li>
-                        Connect IO0 to GND <strong>only</strong> when uploading code
+                        Use 220Ω resistors between GPIO pins and LED positive legs
                       </li>
-                      <li>Remove the IO0 wire after uploading, then press RESET</li>
-                      <li>Make sure to use 5V, not 3.3V for the ESP32-CAM</li>
+                      <li>Connect all LED negative legs to GND</li>
+                      <li>For LCD: Make sure to use I2C LCD module with backpack</li>
                     </ul>
                   </AlertDescription>
                 </Alert>

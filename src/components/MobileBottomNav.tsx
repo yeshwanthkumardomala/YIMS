@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, QrCode, ArrowUpDown, Search } from 'lucide-react';
+import { LayoutDashboard, Package, QrCode, ArrowUpDown, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -14,6 +14,7 @@ const navItems: NavItem[] = [
   { icon: Package, label: 'Items', href: '/items' },
   { icon: QrCode, label: 'Scan', href: '/scan' },
   { icon: ArrowUpDown, label: 'Stock', href: '/stock' },
+  { icon: Cpu, label: 'ESP32', href: '/esp32-integration' },
 ];
 
 interface MobileBottomNavProps {
@@ -50,19 +51,6 @@ export function MobileBottomNav({ onSearchClick }: MobileBottomNavProps) {
             </Link>
           );
         })}
-        
-        {/* Search button */}
-        <button
-          onClick={onSearchClick}
-          className={cn(
-            'flex flex-col items-center justify-center gap-1 w-16 h-full rounded-lg transition-colors',
-            'active:scale-95 touch-manipulation',
-            'text-muted-foreground hover:text-foreground'
-          )}
-        >
-          <Search className="h-5 w-5" />
-          <span className="text-[10px] font-medium">Search</span>
-        </button>
       </div>
     </nav>
   );
