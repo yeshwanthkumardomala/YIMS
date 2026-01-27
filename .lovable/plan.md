@@ -1,173 +1,143 @@
 
+# Enable Offline ESP32 Scanner Operation
 
-# Fix ESP32 Scan Logging + Add Admin Dashboard
+## Current Architecture Analysis
 
-## Overview
+The ESP32-CAM scanner currently **requires internet** because it calls a cloud-hosted edge function:
 
-The ESP32-CAM integration is **mostly working** but has one critical issue preventing scan logs from being saved. This plan fixes that issue and adds the admin dashboard for monitoring.
-
----
-
-## Current Status
-
-| Component | Status | Details |
-|-----------|--------|---------|
-| Edge Function | Working | Tested successfully, returns item data |
-| Item/Location Lookup | Working | Finds items and returns full details |
-| Arduino Code | Ready | Complete code in documentation |
-| Documentation Page | Complete | 5 tabs with all setup info |
-| **Scan Logging** | **BROKEN** | `scanned_by` is NOT NULL but ESP32 sets it to null |
-
----
-
-## Part 1: Fix the Database Issue
-
-**Problem**: The `scan_logs` table requires `scanned_by` (user ID) to be NOT NULL, but ESP32 devices don't have user context.
-
-**Solution**: Make `scanned_by` nullable to allow device-based scans.
-
-```sql
-ALTER TABLE scan_logs ALTER COLUMN scanned_by DROP NOT NULL;
+```text
+CURRENT (Requires Internet):
+ESP32-CAM → WiFi → Internet → Supabase Cloud → Database
 ```
 
-This is the correct approach because:
-- ESP32 is a hardware device, not a logged-in user
-- The `action_taken` field already stores `esp32_scan:{device_id}` for tracking
-- RLS policies need updating to allow service role inserts
+The web app's offline mode uses browser-based IndexedDB which the ESP32 hardware cannot access.
 
 ---
 
-## Part 2: Update RLS Policy for ESP32 Inserts
+## Proposed Solution: Local Network Mode
 
-The current RLS policy requires `scanned_by = auth.uid()`, but ESP32 uses service role key.
+Add a **Local Server Mode** that allows ESP32 scanners to work on a local network without internet access. This leverages the existing offline database infrastructure.
 
-```sql
--- Drop existing insert policy
-DROP POLICY IF EXISTS "Authenticated users can insert scan logs" ON scan_logs;
-
--- Create new policy that allows service role or authenticated users
-CREATE POLICY "Allow scan log inserts"
-  ON scan_logs FOR INSERT
-  WITH CHECK (
-    scanned_by = auth.uid() 
-    OR scanned_by IS NULL  -- Allow ESP32 device scans
-  );
+```text
+PROPOSED (Works Offline):
+ESP32-CAM → WiFi → Local Network → Browser App (running on any device) → IndexedDB
 ```
 
 ---
 
-## Part 3: Add Admin Dashboard Components
+## Implementation Plan
 
-### Files to Create
+### Part 1: Create Local Scan API Endpoint in Web App
 
-| File | Purpose |
-|------|---------|
-| `src/components/esp32/ESP32AdminDashboard.tsx` | Main admin container |
-| `src/components/esp32/LiveScannerFeed.tsx` | Real-time activity feed |
-| `src/components/esp32/ScannerStats.tsx` | Statistics cards |
-| `src/components/esp32/ScanLogsTable.tsx` | Detailed logs with filters |
+Add a new component that exposes a local HTTP server capability when the app is running in Electron or as a PWA on a local machine.
 
-### Features
+**New File: `src/lib/localScanServer.ts`**
+- Uses Web APIs to handle incoming scan requests
+- Queries the local Dexie/IndexedDB database
+- Returns item/location data to ESP32
+- Works without internet
 
-**Live Scanner Feed**
-- Shows last 20 ESP32 scans
-- Auto-refreshes every 10 seconds
-- Color-coded by status (green/yellow/red)
-- Shows device ID, code, result, time ago
+### Part 2: Add Broadcast Discovery Service
 
-**Statistics Cards**
-- Total scans (today / 7 days / 30 days)
-- Success rate percentage
-- Active devices count
-- Most active device
+**New File: `src/components/esp32/LocalServerMode.tsx`**
+- Displays the local IP address and port for ESP32 configuration
+- Shows QR code with server connection info
+- Toggle to enable/disable local server mode
+- Status indicator showing connected ESP32 devices
 
-**Scan Logs Table**
-- Full history of all ESP32 scans
-- Filter by: device ID, date range, status
-- Sort by any column
-- Export to CSV
-- Pagination (50 per page)
+### Part 3: Update Arduino Code with Dual-Mode Support
 
----
+Modify the Arduino sketch to support both modes:
+- **Cloud Mode**: Original behavior, connects to Supabase
+- **Local Mode**: Connects to local YIMS server on the network
 
-## Part 4: Update ESP32Integration.tsx
-
-Add a 6th tab "Admin" that:
-- Only shows for users with admin role
-- Contains the ESP32AdminDashboard component
-- Uses existing `useAuth()` hook for role check
-
-```tsx
-// In tabs list (only for admins)
-{isAdmin && <TabsTrigger value="admin">Admin</TabsTrigger>}
-
-// Tab content
-<TabsContent value="admin">
-  <ESP32AdminDashboard />
-</TabsContent>
+```cpp
+// Configuration options
+#define USE_LOCAL_SERVER true  // Set to false for cloud mode
+const char* LOCAL_SERVER_IP = "192.168.1.100";  // Local YIMS server
+const char* LOCAL_SERVER_PORT = "8080";
 ```
 
+### Part 4: Add Sync Mechanism
+
+When internet is restored:
+- Local scans are queued with timestamps
+- Sync to cloud database when connection available
+- Merge offline scan logs with cloud data
+
 ---
 
-## Technical Implementation
+## Technical Implementation Details
 
-### Query for ESP32 Scans
+### Local Server Approach (Browser-Based)
 
+Since we're using a browser-based app, we'll use a **WebSocket bridge** or **Service Worker** approach:
+
+**Option A: Electron with Express Server**
 ```typescript
-const { data: scans } = await supabase
-  .from('scan_logs')
-  .select('*')
-  .like('action_taken', 'esp32_scan:%')
-  .order('created_at', { ascending: false })
-  .limit(20);
+// In Electron main process
+import express from 'express';
+const app = express();
+
+app.post('/esp32-scan', async (req, res) => {
+  // Query IndexedDB via IPC
+  const result = await ipcRenderer.invoke('lookup-item', req.body.code);
+  res.json(result);
+});
+
+app.listen(8080);
 ```
 
-### Parse Device ID from action_taken
-
-```typescript
-const deviceId = scan.action_taken?.split(':')[1] || 'unknown';
-// e.g., "esp32_scan:ESP32-CAM-01" → "ESP32-CAM-01"
-```
-
-### Determine Scan Status
-
-```typescript
-// Check if code_type is valid and not 'unknown'
-const isSuccess = scan.code_type && scan.code_type !== 'unknown';
-const isError = !isSuccess || scan.action_taken?.includes('invalid');
-```
+**Option B: Progressive Web App with Background Sync**
+- ESP32 sends scans to a local queue file
+- PWA periodically polls for new scans
+- Works in Electron desktop build
 
 ---
 
-## Files Summary
+## Files to Create/Modify
 
 | File | Action | Purpose |
 |------|--------|---------|
-| Database Migration | **Create** | Make scanned_by nullable |
-| RLS Policy Update | **Create** | Allow null scanned_by |
-| `src/components/esp32/ESP32AdminDashboard.tsx` | **Create** | Admin container |
-| `src/components/esp32/LiveScannerFeed.tsx` | **Create** | Live activity |
-| `src/components/esp32/ScannerStats.tsx` | **Create** | Statistics |
-| `src/components/esp32/ScanLogsTable.tsx` | **Create** | Logs table |
-| `src/pages/ESP32Integration.tsx` | **Modify** | Add Admin tab |
+| `src/lib/localScanServer.ts` | Create | Local HTTP server for ESP32 |
+| `src/components/esp32/LocalServerMode.tsx` | Create | UI to configure local mode |
+| `electron/main.ts` | Modify | Add Express server for Electron |
+| `src/pages/ESP32Integration.tsx` | Modify | Add Local Mode tab |
+| Arduino Sketch | Modify | Add dual-mode server selection |
 
 ---
 
-## After Implementation
+## Arduino Sketch Changes
 
-1. ESP32 scans will be properly logged to database
-2. Admins can see live scanner activity
-3. Admins can view statistics and trends
-4. Admins can export scan logs for reporting
-5. The hardware will work exactly as designed
+```cpp
+// Server Mode Configuration
+#define USE_LOCAL_SERVER false  // true = local, false = cloud
+
+#if USE_LOCAL_SERVER
+  const char* SERVER_URL = "http://192.168.1.100:8080/api/scan";
+#else
+  const char* SERVER_URL = "https://cejaafrdxajcjyutettr.supabase.co/functions/v1/esp32-scan";
+#endif
+```
 
 ---
 
-## Testing Plan
+## New Documentation Tab
 
-1. Run migration to fix scanned_by column
-2. Test edge function again with curl
-3. Verify scan appears in scan_logs table
-4. View Admin tab on ESP32 Integration page
-5. Confirm live feed shows test scan
+Add a "Local Mode" tab to ESP32 Integration page explaining:
+- When to use local mode (no internet, air-gapped networks)
+- How to configure the ESP32 for local server
+- How to find your local server IP address
+- Sync behavior when internet is restored
 
+---
+
+## Summary
+
+| Mode | Internet Required | Data Source | Best For |
+|------|-------------------|-------------|----------|
+| Cloud Mode | Yes | Supabase | Normal operation |
+| Local Mode | No | IndexedDB | Air-gapped, no internet |
+| Hybrid Mode | Partial | Both | Unreliable internet |
+
+This solution ensures ESP32 scanners work even in environments with no internet access, while maintaining full sync capability when connectivity is available.
