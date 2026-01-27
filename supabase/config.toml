@@ -1,1 +1,16 @@
 project_id = "cejaafrdxajcjyutettr"
+
+[functions.check-low-stock]
+verify_jwt = false
+
+[functions.generate-totp-secret]
+verify_jwt = false
+
+[functions.verify-totp]
+verify_jwt = false
+
+[functions.webhook-dispatcher]
+verify_jwt = false
+
+[functions.esp32-scan]
+verify_jwt = false

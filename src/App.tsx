@@ -26,6 +26,7 @@ import Reports from "./pages/Reports";
 import Approvals from "./pages/Approvals";
 import About from "./pages/About";
 import HowToUse from "./pages/HowToUse";
+import ESP32Integration from "./pages/ESP32Integration";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => (
                   {/* Public Pages (accessible without auth) */}
                   <Route path="/about" element={<About />} />
                   <Route path="/how-to-use" element={<HowToUse />} />
+                  <Route path="/esp32-integration" element={<ESP32Integration />} />
               
               {/* Protected Routes */}
               <Route
