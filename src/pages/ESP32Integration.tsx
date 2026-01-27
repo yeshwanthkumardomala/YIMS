@@ -34,16 +34,18 @@ const SUPABASE_PROJECT_ID = 'cejaafrdxajcjyutettr';
 
 const arduinoCode = `/*
  * YIMS ESP32-CAM QR Code Scanner
- * Enhanced Version with LCD Display & Status LEDs
+ * Enhanced Version with LCD Display, Status LEDs & Buzzer
  * 
  * This code scans QR codes and sends them to YIMS server
  * for instant item/location lookup. Results are displayed
- * on an I2C LCD and indicated via colored status LEDs.
+ * on an I2C LCD and indicated via colored status LEDs
+ * with audible buzzer feedback.
  * 
  * Hardware:
  *   - ESP32-CAM AI-Thinker + Motherboard
  *   - I2C LCD Display (16x2 or 20x4)
  *   - Status LEDs: Yellow (GPIO 12), Blue (GPIO 13), Red (GPIO 15)
+ *   - Passive Buzzer/Speaker (GPIO 16)
  * 
  * Libraries required:
  *   - ESP32QRCodeReader (by alvarowolfx)
@@ -75,6 +77,7 @@ const char* SERVER_URL = "https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v
 #define LED_YELLOW    12   // Yellow LED - Scanning/Processing
 #define LED_BLUE      13   // Blue LED - Success/Found
 #define LED_RED       15   // Red LED - Error/Low Stock
+#define BUZZER_PIN    16   // Passive Buzzer/Speaker
 
 // I2C LCD Configuration
 #define LCD_SDA       14   // I2C Data pin
@@ -82,6 +85,12 @@ const char* SERVER_URL = "https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v
 #define LCD_ADDRESS   0x27 // Common I2C address (try 0x3F if not working)
 #define LCD_COLS      16   // LCD columns (16 or 20)
 #define LCD_ROWS      2    // LCD rows (2 or 4)
+
+// Buzzer tone frequencies (Hz)
+#define TONE_SUCCESS  1000  // High pitch for success
+#define TONE_WARNING  600   // Medium pitch for warning
+#define TONE_ERROR    300   // Low pitch for error
+#define TONE_READY    800   // Ready beep
 
 // ============================================
 // GLOBAL VARIABLES
@@ -103,13 +112,15 @@ void setup() {
   Serial.println("   Enhanced with LCD & Status LEDs");
   Serial.println("========================================");
   
-  // Initialize LEDs
+  // Initialize LEDs and Buzzer
   pinMode(FLASH_LED_PIN, OUTPUT);
   pinMode(LED_YELLOW, OUTPUT);
   pinMode(LED_BLUE, OUTPUT);
   pinMode(LED_RED, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
   
   allLedsOff();
+  noTone(BUZZER_PIN);
   
   // Initialize I2C for LCD
   Wire.begin(LCD_SDA, LCD_SCL);
@@ -293,17 +304,20 @@ void sendToYIMS(String code) {
           char stockStr[17];
           snprintf(stockStr, sizeof(stockStr), "Stock: %d %s", stock, unit);
           
-          if (stock <= 0) {
+        if (stock <= 0) {
             Serial.println("STATUS: OUT OF STOCK!");
             lcdPrint(name, "OUT OF STOCK!");
             blinkError();
+            beepError();
           } else if (stock <= minStock) {
             Serial.println("STATUS: LOW STOCK");
             lcdPrint(name, "LOW STOCK!");
             blinkWarning();
+            beepWarning();
           } else {
             lcdPrint(name, stockStr);
             blinkSuccess();
+            beepSuccess();
           }
         } else {
           // Location type
@@ -319,6 +333,7 @@ void sendToYIMS(String code) {
           snprintf(typeStr, sizeof(typeStr), "Type: %s", locType);
           lcdPrint(name, typeStr);
           blinkSuccess();
+          beepSuccess();
         }
       } else {
         const char* errorMsg = responseDoc["error"];
@@ -326,11 +341,13 @@ void sendToYIMS(String code) {
         Serial.println(errorMsg);
         lcdPrint("Not Found!", errorMsg);
         blinkError();
+        beepError();
       }
     } else {
       Serial.println("JSON parse error");
       lcdPrint("ERROR!", "Parse failed");
       blinkError();
+      beepError();
     }
   } else {
     Serial.print("HTTP Error: ");
@@ -339,6 +356,7 @@ void sendToYIMS(String code) {
     snprintf(errStr, sizeof(errStr), "Code: %d", httpCode);
     lcdPrint("HTTP Error!", errStr);
     blinkError();
+    beepError();
   }
   
   http.end();
@@ -412,6 +430,45 @@ void blinkWarning() {
   }
   digitalWrite(LED_RED, LOW);
 }
+
+// ============================================
+// BUZZER/SPEAKER FUNCTIONS
+// ============================================
+void beepSuccess() {
+  // Single short beep = success
+  tone(BUZZER_PIN, TONE_SUCCESS, 150);
+  delay(150);
+  noTone(BUZZER_PIN);
+}
+
+void beepWarning() {
+  // Double beep = low stock warning
+  tone(BUZZER_PIN, TONE_WARNING, 150);
+  delay(200);
+  noTone(BUZZER_PIN);
+  delay(100);
+  tone(BUZZER_PIN, TONE_WARNING, 150);
+  delay(200);
+  noTone(BUZZER_PIN);
+}
+
+void beepError() {
+  // Long low beep = error
+  tone(BUZZER_PIN, TONE_ERROR, 500);
+  delay(500);
+  noTone(BUZZER_PIN);
+}
+
+void beepReady() {
+  // Quick ascending beeps = ready
+  tone(BUZZER_PIN, 600, 100);
+  delay(120);
+  tone(BUZZER_PIN, 800, 100);
+  delay(120);
+  tone(BUZZER_PIN, 1000, 150);
+  delay(150);
+  noTone(BUZZER_PIN);
+}
 `.replace('\${SUPABASE_PROJECT_ID}', SUPABASE_PROJECT_ID);
 
 export default function ESP32Integration() {
@@ -446,6 +503,7 @@ export default function ESP32Integration() {
     { name: 'ESP32-CAM Motherboard (MB)', price: '₹150-250', required: true },
     { name: 'I2C LCD Display (16x2 or 20x4)', price: '₹150-300', required: false },
     { name: 'LED Kit (Yellow, Blue, Red)', price: '₹30-50', required: false },
+    { name: 'Passive Buzzer/Speaker (3-5V)', price: '₹20-50', required: false },
     { name: 'Micro USB Cable', price: '₹50-100', required: true },
     { name: '5V Power Supply or USB Power Bank', price: '₹100-300', required: false },
   ];
