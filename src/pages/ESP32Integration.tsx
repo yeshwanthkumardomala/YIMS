@@ -24,22 +24,23 @@ import {
   ShieldCheck,
   Download,
   FileText,
+  Server,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { ESP32AdminDashboard } from '@/components/esp32/ESP32AdminDashboard';
+import { LocalServerMode } from '@/components/esp32/LocalServerMode';
 import { generateWiringDiagramPDF } from '@/components/esp32/WiringDiagramPDF';
 
 const SUPABASE_PROJECT_ID = 'cejaafrdxajcjyutettr';
 
 const arduinoCode = `/*
  * YIMS ESP32-CAM QR Code Scanner
- * Enhanced Version with LCD Display, Status LEDs & Buzzer
+ * Enhanced Version with LCD Display, Status LEDs, Buzzer & Dual-Mode Support
  * 
  * This code scans QR codes and sends them to YIMS server
- * for instant item/location lookup. Results are displayed
- * on an I2C LCD and indicated via colored status LEDs
- * with audible buzzer feedback.
+ * for instant item/location lookup. Supports both cloud mode
+ * (internet required) and local mode (offline operation).
  * 
  * Hardware:
  *   - ESP32-CAM AI-Thinker + Motherboard
@@ -67,8 +68,30 @@ const char* WIFI_SSID = "YOUR_WIFI_SSID";        // Your WiFi network name
 const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"; // Your WiFi password
 const char* DEVICE_ID = "ESP32-CAM-01";          // Unique ID for this scanner
 
-// YIMS Server URL (pre-configured for your project)
-const char* SERVER_URL = "https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/esp32-scan";
+// ============================================
+// SERVER MODE CONFIGURATION
+// ============================================
+// Set to true for LOCAL MODE (no internet required)
+// Set to false for CLOUD MODE (requires internet)
+#define USE_LOCAL_SERVER false
+
+// Local Server Settings (only used when USE_LOCAL_SERVER is true)
+const char* LOCAL_SERVER_IP = "192.168.1.100";   // IP of device running YIMS
+const int LOCAL_SERVER_PORT = 8080;              // Port (default: 8080)
+
+// Cloud Server URL (pre-configured for your project)
+const char* CLOUD_SERVER_URL = "https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/esp32-scan";
+
+// Build the active server URL based on mode
+#if USE_LOCAL_SERVER
+  char SERVER_URL[100];
+  void buildServerUrl() {
+    snprintf(SERVER_URL, sizeof(SERVER_URL), "http://%s:%d/api/scan", LOCAL_SERVER_IP, LOCAL_SERVER_PORT);
+  }
+#else
+  #define SERVER_URL CLOUD_SERVER_URL
+  void buildServerUrl() {} // No-op for cloud mode
+#endif
 
 // ============================================
 // PIN DEFINITIONS
@@ -109,8 +132,17 @@ void setup() {
   Serial.println();
   Serial.println("========================================");
   Serial.println("   YIMS ESP32-CAM QR Code Scanner");
-  Serial.println("   Enhanced with LCD & Status LEDs");
+  #if USE_LOCAL_SERVER
+  Serial.println("   MODE: Local Network (Offline)");
+  #else
+  Serial.println("   MODE: Cloud (Online)");
+  #endif
   Serial.println("========================================");
+  
+  // Build server URL for local mode
+  buildServerUrl();
+  Serial.print("Server URL: ");
+  Serial.println(SERVER_URL);
   
   // Initialize LEDs and Buzzer
   pinMode(FLASH_LED_PIN, OUTPUT);
@@ -633,11 +665,15 @@ export default function ESP32Integration() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="hardware" className="space-y-6">
-          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-2 md:grid-cols-6' : 'grid-cols-2 md:grid-cols-5'}`}>
+          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3 md:grid-cols-7' : 'grid-cols-3 md:grid-cols-6'}`}>
             <TabsTrigger value="hardware">Hardware</TabsTrigger>
             <TabsTrigger value="wiring">Wiring</TabsTrigger>
             <TabsTrigger value="setup">IDE Setup</TabsTrigger>
             <TabsTrigger value="code">Arduino Code</TabsTrigger>
+            <TabsTrigger value="localmode" className="flex items-center gap-1">
+              <Server className="h-3 w-3" />
+              Local Mode
+            </TabsTrigger>
             <TabsTrigger value="troubleshoot">Troubleshoot</TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="admin" className="flex items-center gap-1">
@@ -994,6 +1030,11 @@ export default function ESP32Integration() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Local Server Mode */}
+          <TabsContent value="localmode">
+            <LocalServerMode />
           </TabsContent>
 
           {/* Troubleshooting */}
