@@ -21,8 +21,11 @@ import {
   Package,
   MapPin,
   IndianRupee,
+  ShieldCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { ESP32AdminDashboard } from '@/components/esp32/ESP32AdminDashboard';
 
 const SUPABASE_PROJECT_ID = 'cejaafrdxajcjyutettr';
 
@@ -292,6 +295,7 @@ void blinkWarning() {
 
 export default function ESP32Integration() {
   const [copiedCode, setCopiedCode] = useState(false);
+  const { isAdmin } = useAuth();
 
   const copyCode = async () => {
     try {
@@ -434,12 +438,18 @@ export default function ESP32Integration() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="hardware" className="space-y-6">
-          <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full">
+          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-2 md:grid-cols-6' : 'grid-cols-2 md:grid-cols-5'}`}>
             <TabsTrigger value="hardware">Hardware</TabsTrigger>
             <TabsTrigger value="wiring">Wiring</TabsTrigger>
             <TabsTrigger value="setup">IDE Setup</TabsTrigger>
             <TabsTrigger value="code">Arduino Code</TabsTrigger>
             <TabsTrigger value="troubleshoot">Troubleshoot</TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="admin" className="flex items-center gap-1">
+                <ShieldCheck className="h-3 w-3" />
+                Admin
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Hardware Requirements */}
@@ -778,6 +788,13 @@ export default function ESP32Integration() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Admin Dashboard - Only visible to admins */}
+          {isAdmin && (
+            <TabsContent value="admin">
+              <ESP32AdminDashboard />
+            </TabsContent>
+          )}
         </Tabs>
 
         {/* API Testing Section */}
