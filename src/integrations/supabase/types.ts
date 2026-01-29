@@ -209,6 +209,81 @@ export type Database = {
         }
         Relationships: []
       }
+      google_oauth_tokens: {
+        Row: {
+          access_token: string
+          connected_email: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          refresh_token: string | null
+          scope: string | null
+          token_type: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          connected_email?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_type?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          connected_email?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_type?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      google_sheets_exports: {
+        Row: {
+          created_at: string
+          export_type: string
+          exported_at: string
+          id: string
+          record_counts: Json | null
+          spreadsheet_id: string
+          spreadsheet_name: string
+          spreadsheet_url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          export_type?: string
+          exported_at?: string
+          id?: string
+          record_counts?: Json | null
+          spreadsheet_id: string
+          spreadsheet_name: string
+          spreadsheet_url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          export_type?: string
+          exported_at?: string
+          id?: string
+          record_counts?: Json | null
+          spreadsheet_id?: string
+          spreadsheet_name?: string
+          spreadsheet_url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       item_variants: {
         Row: {
           created_at: string
