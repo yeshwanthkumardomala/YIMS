@@ -1,143 +1,157 @@
 
-# Enable Offline ESP32 Scanner Operation
+# Add Custom Export Options to All Inventory Pages
 
-## Current Architecture Analysis
+## Overview
 
-The ESP32-CAM scanner currently **requires internet** because it calls a cloud-hosted edge function:
+Add export dropdown menus with multiple format options (CSV, Excel, filtered data) to each main inventory page: **Items**, **Locations**, **Categories**, **History**, and **Stock**.
+
+---
+
+## Architecture
 
 ```text
-CURRENT (Requires Internet):
-ESP32-CAM → WiFi → Internet → Supabase Cloud → Database
-```
-
-The web app's offline mode uses browser-based IndexedDB which the ESP32 hardware cannot access.
-
----
-
-## Proposed Solution: Local Network Mode
-
-Add a **Local Server Mode** that allows ESP32 scanners to work on a local network without internet access. This leverages the existing offline database infrastructure.
-
-```text
-PROPOSED (Works Offline):
-ESP32-CAM → WiFi → Local Network → Browser App (running on any device) → IndexedDB
+Each Page Header
+    └── Export Dropdown Button
+         ├── Export All (CSV)
+         ├── Export Filtered (CSV) - where applicable
+         ├── Export as Excel (.xlsx)
+         └── Print View
 ```
 
 ---
 
-## Implementation Plan
+## Implementation Strategy
 
-### Part 1: Create Local Scan API Endpoint in Web App
+### 1. Create Reusable Export Dropdown Component
 
-Add a new component that exposes a local HTTP server capability when the app is running in Electron or as a PWA on a local machine.
+**New File: `src/components/ExportDropdown.tsx`**
 
-**New File: `src/lib/localScanServer.ts`**
-- Uses Web APIs to handle incoming scan requests
-- Queries the local Dexie/IndexedDB database
-- Returns item/location data to ESP32
-- Works without internet
+A reusable component that provides consistent export options across all pages:
 
-### Part 2: Add Broadcast Discovery Service
-
-**New File: `src/components/esp32/LocalServerMode.tsx`**
-- Displays the local IP address and port for ESP32 configuration
-- Shows QR code with server connection info
-- Toggle to enable/disable local server mode
-- Status indicator showing connected ESP32 devices
-
-### Part 3: Update Arduino Code with Dual-Mode Support
-
-Modify the Arduino sketch to support both modes:
-- **Cloud Mode**: Original behavior, connects to Supabase
-- **Local Mode**: Connects to local YIMS server on the network
-
-```cpp
-// Configuration options
-#define USE_LOCAL_SERVER true  // Set to false for cloud mode
-const char* LOCAL_SERVER_IP = "192.168.1.100";  // Local YIMS server
-const char* LOCAL_SERVER_PORT = "8080";
-```
-
-### Part 4: Add Sync Mechanism
-
-When internet is restored:
-- Local scans are queued with timestamps
-- Sync to cloud database when connection available
-- Merge offline scan logs with cloud data
-
----
-
-## Technical Implementation Details
-
-### Local Server Approach (Browser-Based)
-
-Since we're using a browser-based app, we'll use a **WebSocket bridge** or **Service Worker** approach:
-
-**Option A: Electron with Express Server**
 ```typescript
-// In Electron main process
-import express from 'express';
-const app = express();
-
-app.post('/esp32-scan', async (req, res) => {
-  // Query IndexedDB via IPC
-  const result = await ipcRenderer.invoke('lookup-item', req.body.code);
-  res.json(result);
-});
-
-app.listen(8080);
+interface ExportDropdownProps {
+  onExportCSV: () => void;
+  onExportFiltered?: () => void;  // Optional - only for filtered views
+  onExportExcel?: () => void;      // Optional - Excel format
+  onPrint?: () => void;            // Optional - Print view
+  disabled?: boolean;
+  filteredCount?: number;          // Show count of filtered items
+  totalCount?: number;
+}
 ```
 
-**Option B: Progressive Web App with Background Sync**
-- ESP32 sends scans to a local queue file
-- PWA periodically polls for new scans
-- Works in Electron desktop build
+Features:
+- Download icon with dropdown arrow
+- Grouped menu sections (CSV, Excel, Print)
+- Shows item counts where relevant
+- Disabled state during export
+
+---
+
+### 2. Add Excel Export Utility
+
+**Update: `src/lib/csvUtils.ts`**
+
+Add Excel (.xlsx) export using the existing JSZip library:
+
+```typescript
+export async function downloadExcel(
+  sheets: { name: string; data: Record<string, unknown>[]; columns: Column[] }[],
+  filename: string
+): Promise<void>
+```
+
+Uses simple XML-based Excel format (no additional dependencies needed).
+
+---
+
+### 3. Update Each Page
+
+#### Items Page (`src/pages/Items.tsx`)
+Add export dropdown to header with options:
+- Export All Items (CSV)
+- Export Filtered Items (CSV) - uses current filter state
+- Export as Excel
+- Include category/location names in export
+
+#### Locations Page (`src/pages/Locations.tsx`)
+Add export dropdown to header:
+- Export All Locations (CSV)
+- Export as Excel
+- Include parent location names and hierarchy path
+
+#### Categories Page (`src/pages/Categories.tsx`)
+Add export dropdown to header:
+- Export All Categories (CSV)
+- Export as Excel
+- Include item counts per category
+
+#### History Page (`src/pages/History.tsx`)
+Already has CSV export - enhance with:
+- Export Filtered Transactions (uses current search/type filter)
+- Export as Excel
+- Replace single button with dropdown
+
+#### Stock Page (`src/pages/Stock.tsx`)
+Add quick export for current item:
+- Export Item History (CSV)
+- No full export needed (handled by History page)
+
+---
+
+## Data Mapping for Each Export
+
+| Page | Columns |
+|------|---------|
+| Items | Code, Name, Description, Category, Location, Current Stock, Min Stock, Unit |
+| Locations | Code, Name, Type, Parent, Description, Hierarchy Path |
+| Categories | Name, Description, Icon, Color, Item Count |
+| History | Date, Item Code, Item Name, Type, Qty, Before, After, User, Notes |
 
 ---
 
 ## Files to Create/Modify
 
-| File | Action | Purpose |
+| File | Action | Changes |
 |------|--------|---------|
-| `src/lib/localScanServer.ts` | Create | Local HTTP server for ESP32 |
-| `src/components/esp32/LocalServerMode.tsx` | Create | UI to configure local mode |
-| `electron/main.ts` | Modify | Add Express server for Electron |
-| `src/pages/ESP32Integration.tsx` | Modify | Add Local Mode tab |
-| Arduino Sketch | Modify | Add dual-mode server selection |
+| `src/components/ExportDropdown.tsx` | Create | Reusable export dropdown component |
+| `src/lib/csvUtils.ts` | Modify | Add Excel export utility |
+| `src/pages/Items.tsx` | Modify | Add ExportDropdown to header |
+| `src/pages/Locations.tsx` | Modify | Add ExportDropdown to header |
+| `src/pages/Categories.tsx` | Modify | Add ExportDropdown to header |
+| `src/pages/History.tsx` | Modify | Replace button with ExportDropdown |
 
 ---
 
-## Arduino Sketch Changes
+## Technical Details
 
-```cpp
-// Server Mode Configuration
-#define USE_LOCAL_SERVER false  // true = local, false = cloud
+### Excel Export Format
+Using Office Open XML (XLSX) format with JSZip:
+- Creates minimal spreadsheet XML structure
+- Supports multiple sheets
+- Compatible with Excel, Google Sheets, LibreOffice
 
-#if USE_LOCAL_SERVER
-  const char* SERVER_URL = "http://192.168.1.100:8080/api/scan";
-#else
-  const char* SERVER_URL = "https://cejaafrdxajcjyutettr.supabase.co/functions/v1/esp32-scan";
-#endif
+### Export Logic Pattern
+Each page will have its own export functions:
+```typescript
+function exportAllCSV() { /* Export all data */ }
+function exportFilteredCSV() { /* Export filtered data */ }
+function exportExcel() { /* Export as .xlsx */ }
 ```
 
----
-
-## New Documentation Tab
-
-Add a "Local Mode" tab to ESP32 Integration page explaining:
-- When to use local mode (no internet, air-gapped networks)
-- How to configure the ESP32 for local server
-- How to find your local server IP address
-- Sync behavior when internet is restored
+### UI Integration
+- Dropdown placed in page header action area
+- Consistent positioning across all pages
+- Loading state during export
+- Toast notifications on success/failure
 
 ---
 
 ## Summary
 
-| Mode | Internet Required | Data Source | Best For |
-|------|-------------------|-------------|----------|
-| Cloud Mode | Yes | Supabase | Normal operation |
-| Local Mode | No | IndexedDB | Air-gapped, no internet |
-| Hybrid Mode | Partial | Both | Unreliable internet |
-
-This solution ensures ESP32 scanners work even in environments with no internet access, while maintaining full sync capability when connectivity is available.
+This adds comprehensive export capabilities to every inventory page while:
+- Reusing existing CSV utilities
+- Following established UI patterns
+- Providing multiple format options (CSV, Excel)
+- Supporting filtered exports where applicable
+- No changes to database or backend required
