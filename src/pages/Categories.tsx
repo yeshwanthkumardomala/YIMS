@@ -57,6 +57,9 @@ import {
   Folder,
   type LucideIcon,
 } from 'lucide-react';
+import { ExportDropdown } from '@/components/ExportDropdown';
+import { toCSV, downloadCSV } from '@/lib/csvUtils';
+import { downloadExcelSingleSheet } from '@/lib/excelUtils';
 
 // Available icons for categories
 const CATEGORY_ICONS: { value: string; label: string; icon: LucideIcon }[] = [
@@ -92,6 +95,14 @@ const CATEGORY_COLORS = [
   { value: '#0ea5e9', label: 'Sky' },
   { value: '#3b82f6', label: 'Blue' },
 ];
+
+const CATEGORY_CSV_COLUMNS = [
+  { key: 'name', label: 'Name' },
+  { key: 'description', label: 'Description' },
+  { key: 'icon', label: 'Icon' },
+  { key: 'color', label: 'Color' },
+  { key: 'item_count', label: 'Item Count' },
+] as const;
 
 interface Category {
   id: string;
@@ -287,6 +298,34 @@ export default function Categories() {
     return found?.icon || Package;
   }
 
+  function formatCategoriesForExport() {
+    return categories.map((cat) => ({
+      name: cat.name,
+      description: cat.description || '',
+      icon: cat.icon,
+      color: cat.color,
+      item_count: cat.item_count || 0,
+    }));
+  }
+
+  function exportAllCSV() {
+    const formatted = formatCategoriesForExport();
+    const csv = toCSV(formatted, CATEGORY_CSV_COLUMNS);
+    downloadCSV(csv, `categories-${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success('Exported categories to CSV');
+  }
+
+  async function exportExcel() {
+    try {
+      const formatted = formatCategoriesForExport();
+      await downloadExcelSingleSheet(formatted, CATEGORY_CSV_COLUMNS, `categories-${new Date().toISOString().split('T')[0]}.xlsx`, 'Categories');
+      toast.success('Exported categories to Excel');
+    } catch (error) {
+      console.error('Excel export error:', error);
+      toast.error('Failed to export Excel file');
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -294,20 +333,26 @@ export default function Categories() {
           <h1 className="text-3xl font-bold tracking-tight">Categories</h1>
           <p className="text-muted-foreground">Organize items into categories with colors and icons</p>
         </div>
-        {canManageInventory && (
-          <Dialog
-            open={isDialogOpen}
-            onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) resetForm();
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Category
-              </Button>
-            </DialogTrigger>
+        <div className="flex gap-2">
+          <ExportDropdown
+            onExportCSV={exportAllCSV}
+            onExportExcel={exportExcel}
+            totalCount={categories.length}
+          />
+          {canManageInventory && (
+            <Dialog
+              open={isDialogOpen}
+              onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) resetForm();
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Category
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <form onSubmit={handleSubmit}>
                 <DialogHeader>
@@ -435,8 +480,9 @@ export default function Categories() {
                 </DialogFooter>
               </form>
             </DialogContent>
-          </Dialog>
-        )}
+            </Dialog>
+          )}
+        </div>
       </div>
 
       <Card>

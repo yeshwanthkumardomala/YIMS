@@ -41,6 +41,9 @@ import {
   QrCode,
 } from 'lucide-react';
 import { CodeGenerator } from '@/components/CodeGenerator';
+import { ExportDropdown } from '@/components/ExportDropdown';
+import { toCSV, downloadCSV } from '@/lib/csvUtils';
+import { downloadExcelSingleSheet } from '@/lib/excelUtils';
 import type { Location, LocationType } from '@/types/database';
 
 const LOCATION_TYPES: { value: LocationType; label: string; icon: typeof Building2 }[] = [
@@ -50,6 +53,15 @@ const LOCATION_TYPES: { value: LocationType; label: string; icon: typeof Buildin
   { value: 'box', label: 'Box', icon: Package },
   { value: 'drawer', label: 'Drawer', icon: Inbox },
 ];
+
+const LOCATION_CSV_COLUMNS = [
+  { key: 'code', label: 'Code' },
+  { key: 'name', label: 'Name' },
+  { key: 'location_type', label: 'Type' },
+  { key: 'parent_name', label: 'Parent' },
+  { key: 'description', label: 'Description' },
+  { key: 'hierarchy', label: 'Hierarchy Path' },
+] as const;
 
 export default function Locations() {
   const { canManageInventory } = useAuth();
@@ -308,6 +320,46 @@ export default function Locations() {
 
   const tree = buildTree();
 
+  // Build hierarchy path for a location
+  function getHierarchyPath(locationId: string): string {
+    const parts: string[] = [];
+    let current: Location | undefined = locations.find(l => l.id === locationId);
+    while (current) {
+      parts.unshift(current.name);
+      current = current.parent_id ? locations.find(l => l.id === current!.parent_id) : undefined;
+    }
+    return parts.join(' > ');
+  }
+
+  function formatLocationsForExport() {
+    return locations.map((loc) => ({
+      code: loc.code,
+      name: loc.name,
+      location_type: loc.location_type,
+      parent_name: loc.parent_id ? locations.find(l => l.id === loc.parent_id)?.name || '' : '',
+      description: loc.description || '',
+      hierarchy: getHierarchyPath(loc.id),
+    }));
+  }
+
+  function exportAllCSV() {
+    const formatted = formatLocationsForExport();
+    const csv = toCSV(formatted, LOCATION_CSV_COLUMNS);
+    downloadCSV(csv, `locations-${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success('Exported locations to CSV');
+  }
+
+  async function exportExcel() {
+    try {
+      const formatted = formatLocationsForExport();
+      await downloadExcelSingleSheet(formatted, LOCATION_CSV_COLUMNS, `locations-${new Date().toISOString().split('T')[0]}.xlsx`, 'Locations');
+      toast.success('Exported locations to Excel');
+    } catch (error) {
+      console.error('Excel export error:', error);
+      toast.error('Failed to export Excel file');
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -315,20 +367,26 @@ export default function Locations() {
           <h1 className="text-3xl font-bold tracking-tight">Locations</h1>
           <p className="text-muted-foreground">Manage storage locations hierarchy</p>
         </div>
-        {canManageInventory && (
-          <Dialog
-            open={isDialogOpen}
-            onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) resetForm();
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Location
-              </Button>
-            </DialogTrigger>
+        <div className="flex gap-2">
+          <ExportDropdown
+            onExportCSV={exportAllCSV}
+            onExportExcel={exportExcel}
+            totalCount={locations.length}
+          />
+          {canManageInventory && (
+            <Dialog
+              open={isDialogOpen}
+              onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) resetForm();
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Location
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <form onSubmit={handleSubmit}>
                 <DialogHeader>
@@ -416,8 +474,9 @@ export default function Locations() {
                 </DialogFooter>
               </form>
             </DialogContent>
-          </Dialog>
-        )}
+            </Dialog>
+          )}
+        </div>
       </div>
 
       <Card>

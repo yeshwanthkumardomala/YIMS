@@ -99,7 +99,7 @@ function parseCSVLine(line: string): string[] {
 // Convert array of objects to CSV string
 export function toCSV<T extends Record<string, unknown>>(
   data: T[],
-  columns: { key: keyof T; label: string }[]
+  columns: readonly { key: keyof T; label: string }[]
 ): string {
   const header = columns.map((c) => escapeCSVValue(c.label)).join(',');
   const rows = data.map((row) =>
