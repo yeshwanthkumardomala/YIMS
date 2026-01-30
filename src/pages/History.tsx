@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -26,8 +25,11 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   TrendingUp,
-  Download,
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { ExportDropdown } from '@/components/ExportDropdown';
+import { toCSV, downloadCSV } from '@/lib/csvUtils';
+import { downloadExcelSingleSheet } from '@/lib/excelUtils';
 import type { StockTransaction } from '@/types/database';
 
 interface TransactionWithJoins extends Omit<StockTransaction, 'item' | 'performer'> {
@@ -35,9 +37,23 @@ interface TransactionWithJoins extends Omit<StockTransaction, 'item' | 'performe
   performer?: { username: string } | null;
 }
 
+const HISTORY_CSV_COLUMNS = [
+  { key: 'date', label: 'Date' },
+  { key: 'time', label: 'Time' },
+  { key: 'item_code', label: 'Item Code' },
+  { key: 'item_name', label: 'Item Name' },
+  { key: 'transaction_type', label: 'Type' },
+  { key: 'quantity', label: 'Quantity' },
+  { key: 'balance_before', label: 'Before' },
+  { key: 'balance_after', label: 'After' },
+  { key: 'performer', label: 'User' },
+  { key: 'notes', label: 'Notes' },
+] as const;
+
 export default function History() {
   const [transactions, setTransactions] = useState<TransactionWithJoins[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
 
@@ -98,27 +114,51 @@ export default function History() {
     return matchesSearch && matchesType;
   });
 
-  function exportToCSV() {
-    const headers = ['Date', 'Item', 'Code', 'Type', 'Quantity', 'Before', 'After', 'User', 'Notes'];
-    const rows = filteredTransactions.map((t) => [
-      new Date(t.created_at).toLocaleString(),
-      t.item?.name || '',
-      t.item?.code || '',
-      t.transaction_type,
-      t.quantity,
-      t.balance_before,
-      t.balance_after,
-      t.performer?.username || '',
-      t.notes || '',
-    ]);
+  function formatTransactionsForExport(data: TransactionWithJoins[]) {
+    return data.map((t) => ({
+      date: new Date(t.created_at).toLocaleDateString(),
+      time: new Date(t.created_at).toLocaleTimeString(),
+      item_code: t.item?.code || '',
+      item_name: t.item?.name || '',
+      transaction_type: t.transaction_type,
+      quantity: t.quantity,
+      balance_before: t.balance_before,
+      balance_after: t.balance_after,
+      performer: t.performer?.username || '',
+      notes: t.notes || '',
+    }));
+  }
 
-    const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transactions-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+  function exportAllCSV() {
+    const formatted = formatTransactionsForExport(transactions);
+    const csv = toCSV(formatted, HISTORY_CSV_COLUMNS);
+    downloadCSV(csv, `transactions-all-${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success('Exported all transactions to CSV');
+  }
+
+  function exportFilteredCSV() {
+    const formatted = formatTransactionsForExport(filteredTransactions);
+    const csv = toCSV(formatted, HISTORY_CSV_COLUMNS);
+    downloadCSV(csv, `transactions-filtered-${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success('Exported filtered transactions to CSV');
+  }
+
+  async function exportExcel() {
+    setExporting(true);
+    try {
+      const formatted = formatTransactionsForExport(transactions);
+      await downloadExcelSingleSheet(formatted, HISTORY_CSV_COLUMNS, `transactions-${new Date().toISOString().split('T')[0]}.xlsx`, 'Transactions');
+      toast.success('Exported transactions to Excel');
+    } catch (error) {
+      console.error('Excel export error:', error);
+      toast.error('Failed to export Excel file');
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  function handlePrint() {
+    window.print();
   }
 
   return (
@@ -128,10 +168,15 @@ export default function History() {
           <h1 className="text-3xl font-bold tracking-tight">Transaction History</h1>
           <p className="text-muted-foreground">View all stock movements and changes</p>
         </div>
-        <Button variant="outline" onClick={exportToCSV}>
-          <Download className="mr-2 h-4 w-4" />
-          Export CSV
-        </Button>
+        <ExportDropdown
+          onExportCSV={exportAllCSV}
+          onExportFiltered={exportFilteredCSV}
+          onExportExcel={exportExcel}
+          onPrint={handlePrint}
+          loading={exporting}
+          filteredCount={filteredTransactions.length}
+          totalCount={transactions.length}
+        />
       </div>
 
       {/* Filters */}

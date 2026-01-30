@@ -41,7 +41,21 @@ import { BatchCodeGenerator } from '@/components/BatchCodeGenerator';
 import { ImageUpload } from '@/components/ImageUpload';
 import { VariantBuilder } from '@/components/VariantBuilder';
 import { AdvancedFilters } from '@/components/filters/AdvancedFilters';
+import { ExportDropdown } from '@/components/ExportDropdown';
+import { toCSV, downloadCSV } from '@/lib/csvUtils';
+import { downloadExcelSingleSheet } from '@/lib/excelUtils';
 import type { Item, Category, Location, ItemVariant, ItemFilters } from '@/types/database';
+
+const ITEM_EXPORT_COLUMNS = [
+  { key: 'code', label: 'Code' },
+  { key: 'name', label: 'Name' },
+  { key: 'description', label: 'Description' },
+  { key: 'category_name', label: 'Category' },
+  { key: 'location_name', label: 'Location' },
+  { key: 'current_stock', label: 'Current Stock' },
+  { key: 'minimum_stock', label: 'Minimum Stock' },
+  { key: 'unit', label: 'Unit' },
+] as const;
 
 export default function Items() {
   const { canManageInventory } = useAuth();
@@ -336,6 +350,44 @@ export default function Items() {
   // Convert items to batch print format
   const batchPrintItems = items.map(i => ({ id: i.id, code: i.code, name: i.name }));
 
+  function formatItemsForExport(data: Item[]) {
+    return data.map((item) => ({
+      code: item.code,
+      name: item.name,
+      description: item.description || '',
+      category_name: item.category?.name || '',
+      location_name: item.location?.name || '',
+      current_stock: item.current_stock,
+      minimum_stock: item.minimum_stock,
+      unit: item.unit,
+    }));
+  }
+
+  function exportAllCSV() {
+    const formatted = formatItemsForExport(items);
+    const csv = toCSV(formatted, ITEM_EXPORT_COLUMNS);
+    downloadCSV(csv, `items-all-${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success('Exported all items to CSV');
+  }
+
+  function exportFilteredCSV() {
+    const formatted = formatItemsForExport(filteredItems);
+    const csv = toCSV(formatted, ITEM_EXPORT_COLUMNS);
+    downloadCSV(csv, `items-filtered-${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success('Exported filtered items to CSV');
+  }
+
+  async function exportExcel() {
+    try {
+      const formatted = formatItemsForExport(items);
+      await downloadExcelSingleSheet(formatted, ITEM_EXPORT_COLUMNS, `items-${new Date().toISOString().split('T')[0]}.xlsx`, 'Items');
+      toast.success('Exported items to Excel');
+    } catch (error) {
+      console.error('Excel export error:', error);
+      toast.error('Failed to export Excel file');
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -344,6 +396,13 @@ export default function Items() {
           <p className="text-muted-foreground">Manage your inventory items</p>
         </div>
         <div className="flex gap-2">
+          <ExportDropdown
+            onExportCSV={exportAllCSV}
+            onExportFiltered={exportFilteredCSV}
+            onExportExcel={exportExcel}
+            filteredCount={filteredItems.length}
+            totalCount={items.length}
+          />
           <Button variant="outline" onClick={() => setBatchPrintOpen(true)}>
             <Printer className="mr-2 h-4 w-4" />
             Batch Print
