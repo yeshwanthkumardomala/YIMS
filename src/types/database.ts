@@ -4,7 +4,7 @@ export type AppRole = 'super_admin' | 'admin' | 'lab_manager' | 'operator' | 'st
 export type LocationType = 'building' | 'room' | 'shelf' | 'box' | 'drawer';
 export type TransactionType = 'stock_in' | 'stock_out' | 'adjustment';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
-export type ApprovalRequestType = 'large_stock_out' | 'new_item' | 'item_update';
+export type ApprovalRequestType = 'large_stock_out' | 'new_item' | 'item_update' | 'data_reset';
 
 export interface Profile {
   id: string;

@@ -65,6 +65,7 @@ import { BackupSchedulerSection } from '@/components/admin/BackupSchedulerSectio
 import { DataSharingSection } from '@/components/admin/DataSharingSection';
 import { SystemHealthSection } from '@/components/admin/SystemHealthSection';
 import { GoogleSheetsSection } from '@/components/admin/GoogleSheetsSection';
+import { DataResetSection } from '@/components/admin/DataResetSection';
 import { SafeModeBanner } from '@/components/SafeModeIndicator';
 
 export default function Settings() {
@@ -638,6 +639,9 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Data Reset Section - Danger Zone */}
+          <DataResetSection />
         </TabsContent>
       </Tabs>
 
