@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.google-sheets-export]
 verify_jwt = false
+
+[functions.data-reset]
+verify_jwt = false

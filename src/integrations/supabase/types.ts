@@ -959,6 +959,7 @@ export type Database = {
           total_count: number
         }[]
       }
+      get_primary_admin_id: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -974,6 +975,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_primary_admin: { Args: { _user_id: string }; Returns: boolean }
       search_items: {
         Args: { p_limit?: number; p_offset?: number; search_query: string }
         Returns: {

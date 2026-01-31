@@ -21,6 +21,10 @@ export type SystemEventType =
   | 'export_completed'
   | 'data_export'
   | 'scan_performed'
+  | 'data_reset_requested'
+  | 'data_reset_approved'
+  | 'data_reset_rejected'
+  | 'data_reset_completed'
   | 'error';
 
 export interface LogEventOptions {
@@ -86,6 +90,10 @@ export function getEventTypeLabel(eventType: string): string {
     export_completed: 'Export Completed',
     data_export: 'Data Export',
     scan_performed: 'Scan Performed',
+    data_reset_requested: 'Data Reset Requested',
+    data_reset_approved: 'Data Reset Approved',
+    data_reset_rejected: 'Data Reset Rejected',
+    data_reset_completed: 'Data Reset Completed',
     error: 'Error',
   };
   return labels[eventType] || eventType;
@@ -116,6 +124,10 @@ export function getEventTypeBadgeVariant(eventType: string): 'default' | 'second
     export_completed: 'secondary',
     data_export: 'secondary',
     scan_performed: 'outline',
+    data_reset_requested: 'destructive',
+    data_reset_approved: 'destructive',
+    data_reset_rejected: 'secondary',
+    data_reset_completed: 'destructive',
     error: 'destructive',
   };
   return variants[eventType] || 'outline';
@@ -143,5 +155,9 @@ export const ALL_EVENT_TYPES: SystemEventType[] = [
   'export_completed',
   'data_export',
   'scan_performed',
+  'data_reset_requested',
+  'data_reset_approved',
+  'data_reset_rejected',
+  'data_reset_completed',
   'error',
 ];
