@@ -34,16 +34,16 @@ Deno.serve(async (req) => {
 
     // Verify the user
     const token = authHeader.replace('Bearer ', '');
-    const { data: claims, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claims?.claims) {
-      console.error('Auth error:', claimsError);
+    const { data: { user: authUser }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !authUser) {
+      console.error('Auth error:', userError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const userId = claims.claims.sub as string;
+    const userId = authUser.id;
     console.log('Data reset requested by user:', userId);
 
     // Use service role client for admin operations

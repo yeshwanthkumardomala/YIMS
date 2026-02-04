@@ -2,7 +2,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ExportSection } from '@/components/import-export/ExportSection';
 import { ImportSection } from '@/components/import-export/ImportSection';
 import { FullBackupSection } from '@/components/import-export/FullBackupSection';
-import { FileSpreadsheet, Database } from 'lucide-react';
+import { QuickAddSection } from '@/components/import-export/QuickAddSection';
+import { FileSpreadsheet, Database, Plus } from 'lucide-react';
 
 export default function ImportExport() {
   return (
@@ -18,6 +19,10 @@ export default function ImportExport() {
             <FileSpreadsheet className="h-4 w-4" />
             CSV Import/Export
           </TabsTrigger>
+          <TabsTrigger value="quickadd" className="gap-2">
+            <Plus className="h-4 w-4" />
+            Quick Add
+          </TabsTrigger>
           <TabsTrigger value="backup" className="gap-2">
             <Database className="h-4 w-4" />
             Full Backup
@@ -27,6 +32,10 @@ export default function ImportExport() {
         <TabsContent value="csv" className="space-y-6">
           <ExportSection />
           <ImportSection />
+        </TabsContent>
+
+        <TabsContent value="quickadd">
+          <QuickAddSection />
         </TabsContent>
 
         <TabsContent value="backup">
