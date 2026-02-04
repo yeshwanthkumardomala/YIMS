@@ -411,6 +411,7 @@ export type Database = {
           code: string
           created_at: string
           created_by: string | null
+          custom_type_label: string | null
           description: string | null
           id: string
           is_active: boolean
@@ -423,6 +424,7 @@ export type Database = {
           code: string
           created_at?: string
           created_by?: string | null
+          custom_type_label?: string | null
           description?: string | null
           id?: string
           is_active?: boolean
@@ -435,6 +437,7 @@ export type Database = {
           code?: string
           created_at?: string
           created_by?: string | null
+          custom_type_label?: string | null
           description?: string | null
           id?: string
           is_active?: boolean
