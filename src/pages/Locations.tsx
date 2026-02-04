@@ -39,6 +39,7 @@ import {
   Pencil,
   Trash2,
   QrCode,
+  Settings,
 } from 'lucide-react';
 import { CodeGenerator } from '@/components/CodeGenerator';
 import { ExportDropdown } from '@/components/ExportDropdown';
@@ -53,6 +54,9 @@ const LOCATION_TYPES: { value: LocationType; label: string; icon: typeof Buildin
   { value: 'box', label: 'Box', icon: Package },
   { value: 'drawer', label: 'Drawer', icon: Inbox },
 ];
+
+// Extended type for UI that includes custom option
+type LocationTypeWithCustom = LocationType | 'custom';
 
 const LOCATION_CSV_COLUMNS = [
   { key: 'code', label: 'Code' },
@@ -76,8 +80,9 @@ export default function Locations() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    location_type: '' as LocationType | '',
+    location_type: '' as LocationTypeWithCustom | '',
     parent_id: '',
+    custom_type_label: '',
   });
 
   useEffect(() => {
@@ -109,23 +114,31 @@ export default function Locations() {
       description: '',
       location_type: '',
       parent_id: '',
+      custom_type_label: '',
     });
     setEditingLocation(null);
   }
 
   function openEditDialog(location: Location) {
     setEditingLocation(location);
+    // Check if this has a custom label - if so, set type to 'custom'
+    const hasCustomLabel = !!(location as any).custom_type_label;
     setFormData({
       name: location.name,
       description: location.description || '',
-      location_type: location.location_type,
+      location_type: hasCustomLabel ? 'custom' : location.location_type,
       parent_id: location.parent_id || '',
+      custom_type_label: (location as any).custom_type_label || '',
     });
     setIsDialogOpen(true);
   }
 
-  function getParentOptions(currentType: LocationType | '') {
+  function getParentOptions(currentType: LocationTypeWithCustom | '') {
     if (!currentType) return [];
+    // For custom type, allow any location as parent
+    if (currentType === 'custom') {
+      return locations;
+    }
     const typeIndex = LOCATION_TYPES.findIndex((t) => t.value === currentType);
     if (typeIndex <= 0) return [];
 
@@ -139,6 +152,14 @@ export default function Locations() {
       toast.error('Name and type are required');
       return;
     }
+    if (formData.location_type === 'custom' && !formData.custom_type_label.trim()) {
+      toast.error('Custom type label is required');
+      return;
+    }
+
+    // Determine the actual DB location type - custom uses 'box' as base type
+    const dbLocationType: LocationType = formData.location_type === 'custom' ? 'box' : formData.location_type;
+    const customLabel = formData.location_type === 'custom' ? formData.custom_type_label.trim() : null;
 
     setSubmitting(true);
     try {
@@ -148,8 +169,9 @@ export default function Locations() {
           .update({
             name: formData.name.trim(),
             description: formData.description.trim() || null,
-            location_type: formData.location_type,
+            location_type: dbLocationType,
             parent_id: formData.parent_id || null,
+            custom_type_label: customLabel,
           })
           .eq('id', editingLocation.id);
 
@@ -158,22 +180,23 @@ export default function Locations() {
         await logSystemEvent({
           eventType: 'location_updated',
           description: `Location "${formData.name}" was updated`,
-          metadata: { locationId: editingLocation.id, locationCode: editingLocation.code, name: formData.name, type: formData.location_type },
+          metadata: { locationId: editingLocation.id, locationCode: editingLocation.code, name: formData.name, type: dbLocationType, customLabel },
         });
         
         toast.success('Location updated successfully');
       } else {
         const { data: codeData } = await supabase.rpc('generate_location_code', {
-          _type: formData.location_type,
+          _type: dbLocationType,
         });
-        const locationCode = codeData || `YIMS:${formData.location_type.toUpperCase()}:${Date.now()}`;
+        const locationCode = codeData || `YIMS:${dbLocationType.toUpperCase()}:${Date.now()}`;
 
         const { data: newLocation, error } = await supabase.from('locations').insert({
           code: locationCode,
           name: formData.name.trim(),
           description: formData.description.trim() || null,
-          location_type: formData.location_type,
+          location_type: dbLocationType,
           parent_id: formData.parent_id || null,
+          custom_type_label: customLabel,
         }).select('id').single();
 
         if (error) throw error;
@@ -181,7 +204,7 @@ export default function Locations() {
         await logSystemEvent({
           eventType: 'location_created',
           description: `New location "${formData.name}" was created`,
-          metadata: { locationId: newLocation?.id, locationCode, name: formData.name, type: formData.location_type },
+          metadata: { locationId: newLocation?.id, locationCode, name: formData.name, type: dbLocationType, customLabel },
         });
         
         toast.success('Location created successfully');
@@ -285,7 +308,7 @@ export default function Locations() {
             <div className="text-xs text-muted-foreground font-mono">{location.code}</div>
           </div>
           <Badge variant="secondary" className="capitalize">
-            {location.location_type}
+            {(location as any).custom_type_label || location.location_type}
           </Badge>
           <div className="flex gap-1">
             <Button
@@ -405,7 +428,7 @@ export default function Locations() {
                     <Select
                       value={formData.location_type}
                       onValueChange={(value) =>
-                        setFormData({ ...formData, location_type: value as LocationType, parent_id: '' })
+                        setFormData({ ...formData, location_type: value as LocationTypeWithCustom, parent_id: '', custom_type_label: '' })
                       }
                     >
                       <SelectTrigger>
@@ -420,9 +443,26 @@ export default function Locations() {
                             </div>
                           </SelectItem>
                         ))}
+                        <SelectItem value="custom">
+                          <div className="flex items-center gap-2">
+                            <Settings className="h-4 w-4" />
+                            Custom
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                  {formData.location_type === 'custom' && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="custom_label">Custom Type Label *</Label>
+                      <Input
+                        id="custom_label"
+                        value={formData.custom_type_label}
+                        onChange={(e) => setFormData({ ...formData, custom_type_label: e.target.value })}
+                        placeholder="e.g., Cabinet, Rack, Container"
+                      />
+                    </div>
+                  )}
                   <div className="grid gap-2">
                     <Label htmlFor="name">Name *</Label>
                     <Input
@@ -450,12 +490,13 @@ export default function Locations() {
                         onValueChange={(value) => setFormData({ ...formData, parent_id: value })}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select parent location" />
+                          <SelectValue placeholder="Select parent location (optional)" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="">None (top-level)</SelectItem>
                           {getParentOptions(formData.location_type).map((loc) => (
                             <SelectItem key={loc.id} value={loc.id}>
-                              {loc.name} ({loc.location_type})
+                              {loc.name} ({(loc as any).custom_type_label || loc.location_type})
                             </SelectItem>
                           ))}
                         </SelectContent>
