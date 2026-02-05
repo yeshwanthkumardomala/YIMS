@@ -7,11 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, FolderPlus, MapPin, Package, Loader2 } from 'lucide-react';
+ import { Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 
 type LocationType = Database['public']['Enums']['location_type'];
+ type LocationTypeWithCustom = LocationType | 'custom';
 
 interface Category {
   id: string;
@@ -26,7 +28,14 @@ interface Location {
   location_type: LocationType;
 }
 
-const LOCATION_TYPES: LocationType[] = ['building', 'room', 'shelf', 'box', 'drawer'];
+const LOCATION_TYPES: { value: LocationTypeWithCustom; label: string }[] = [
+  { value: 'building', label: 'Building' },
+  { value: 'room', label: 'Room' },
+  { value: 'shelf', label: 'Shelf' },
+  { value: 'box', label: 'Box' },
+  { value: 'drawer', label: 'Drawer' },
+  { value: 'custom', label: 'Custom' },
+];
 const COLOR_OPTIONS = [
   { value: '#ef4444', label: 'Red' },
   { value: '#f97316', label: 'Orange' },
@@ -53,7 +62,8 @@ export function QuickAddSection() {
 
   // Location form
   const [locationName, setLocationName] = useState('');
-  const [locationType, setLocationType] = useState<LocationType>('room');
+  const [locationType, setLocationType] = useState<LocationTypeWithCustom>('room');
+  const [customTypeLabel, setCustomTypeLabel] = useState('');
   const [locationParentId, setLocationParentId] = useState<string>('');
   const [locationDescription, setLocationDescription] = useState('');
 
@@ -89,6 +99,7 @@ export function QuickAddSection() {
   const resetLocationForm = () => {
     setLocationName('');
     setLocationType('room');
+    setCustomTypeLabel('');
     setLocationParentId('');
     setLocationDescription('');
   };
@@ -134,11 +145,20 @@ export function QuickAddSection() {
       return;
     }
 
+    if (locationType === 'custom' && !customTypeLabel.trim()) {
+      toast({ title: 'Error', description: 'Custom type label is required', variant: 'destructive' });
+      return;
+    }
+
     setIsLoading(true);
     try {
+      // Determine database type and custom label
+      const dbLocationType: LocationType = locationType === 'custom' ? 'box' : locationType;
+      const customLabel = locationType === 'custom' ? customTypeLabel.trim() : null;
+
       // Generate location code
       const { data: codeData, error: codeError } = await supabase.rpc('generate_location_code', {
-        _type: locationType,
+        _type: dbLocationType,
       });
 
       if (codeError) throw codeError;
@@ -146,7 +166,8 @@ export function QuickAddSection() {
       const { error } = await supabase.from('locations').insert({
         name: locationName.trim(),
         code: codeData,
-        location_type: locationType,
+        location_type: dbLocationType,
+        custom_type_label: customLabel,
         parent_id: locationParentId || null,
         description: locationDescription.trim() || null,
       });
@@ -301,20 +322,34 @@ export function QuickAddSection() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="loc-type">Type *</Label>
-                <Select value={locationType} onValueChange={(v) => setLocationType(v as LocationType)}>
+                <Select value={locationType} onValueChange={(v) => setLocationType(v as LocationTypeWithCustom)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {LOCATION_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      <SelectItem key={type.value} value={type.value}>
+                        <div className="flex items-center gap-2">
+                          {type.value === 'custom' && <Settings className="h-3 w-3" />}
+                          {type.label}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
+            {locationType === 'custom' && (
+              <div className="space-y-2">
+                <Label htmlFor="loc-custom-label">Custom Type Label *</Label>
+                <Input
+                  id="loc-custom-label"
+                  placeholder="e.g., Cabinet, Rack, Container"
+                  value={customTypeLabel}
+                  onChange={(e) => setCustomTypeLabel(e.target.value)}
+                />
+              </div>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="loc-parent">Parent Location</Label>
