@@ -1,117 +1,162 @@
 
-# Combined Plan: Fix Data Reset + Add Custom Quick Add Options to Import/Export
+# Add Custom Location Type to All Quick Add Sections
 
-## Part 1: Fix Data Reset Feature
+## Overview
 
-### Issue Identified
-The edge function `supabase/functions/data-reset/index.ts` uses an invalid authentication method:
-```typescript
-// Line 37 - BROKEN
-const { data: claims, error: claimsError } = await supabase.auth.getClaims(token);
-```
-The `getClaims()` method does not exist in the Supabase JS library. This causes all reset attempts to fail with an authorization error.
-
-### Fix Required
-Replace with the correct `getUser()` method:
-```typescript
-// FIXED
-const { data: { user: authUser }, error: userError } = await supabase.auth.getUser(token);
-const userId = authUser?.id;
-```
-
-### File to Modify
-- `supabase/functions/data-reset/index.ts` - Fix authentication logic
+Add the "Custom" location type option consistently across all location creation interfaces in the application. This allows users to define their own location labels (e.g., "Cabinet", "Rack", "Container") beyond the fixed database enum types.
 
 ---
 
-## Part 2: Add Quick Add Options to Import/Export Page
+## Current State
 
-### Current State
-The Import/Export page has two sections:
-1. **Export Section** - Download CSV for Items, Locations, Transactions
-2. **Import Section** - Upload CSV to bulk import Items, Locations, Stock
+The custom location type option was added to the main **Locations page** (`src/pages/Locations.tsx`) but is missing from:
 
-### Enhancement
-Add a **Quick Add Section** that allows users to manually add individual records directly from the Import/Export page without navigating elsewhere. This is useful when:
-- User needs to add a category/location before importing items
-- Quick data entry without leaving the page
-- Creating missing parent records during import preparation
-
-### New Component: `QuickAddSection.tsx`
-
-A dedicated card with tabs for each entity type:
-
-| Tab | Fields | Notes |
-|-----|--------|-------|
-| Category | Name, Color, Description | Color picker included |
-| Location | Name, Type, Parent (optional), Description | Type dropdown: building/room/shelf/box/drawer |
-| Item | Name, Category, Location, Initial Stock, Min Stock, Unit | Dropdowns for category/location |
-
-### UI Design
-
-```text
-Quick Add Section Card
-├── Header: "Quick Add" with Plus icon
-├── Description: "Add individual records before bulk import"
-├── Tabs: [Category] [Location] [Item]
-└── TabContent:
-    ├── Form fields specific to selected tab
-    ├── Clear form button
-    └── Add button (creates record)
-```
-
-### Features
-- Form validation with error messages
-- Auto-refresh dropdowns after adding (e.g., add category, then see it in Item form)
-- Success toast with option to "Add Another"
-- Loading state during submission
-- Uses existing database RPC functions for code generation
+1. **QuickAddSection** - Import/Export page (`src/components/import-export/QuickAddSection.tsx`)
+2. **QuickAddToolbar** - Floating action button (`src/components/QuickAddToolbar.tsx`)
+3. **QuickStartWizard** - Onboarding flow (`src/components/onboarding/QuickStartWizard.tsx`)
 
 ---
 
-## Files to Create/Modify
+## Technical Implementation
 
-| File | Action | Description |
-|------|--------|-------------|
-| `supabase/functions/data-reset/index.ts` | Modify | Fix auth bug (getClaims to getUser) |
-| `src/components/import-export/QuickAddSection.tsx` | Create | New component for manual data entry |
-| `src/pages/ImportExport.tsx` | Modify | Add QuickAddSection below ImportSection |
+### How Custom Types Work
+
+The database has a `location_type` enum with fixed values (`building`, `room`, `shelf`, `box`, `drawer`). To support custom types:
+
+1. User selects "Custom" in the dropdown
+2. A new input field appears for the custom label (e.g., "Cabinet")
+3. On save, the system uses `box` as the base `location_type` for database compatibility
+4. The custom label is stored in the `custom_type_label` column
+5. When displaying, the custom label takes precedence over the base type
+
+### Changes Required
+
+**For each component, add:**
+- A "Custom" option to the location type dropdown
+- A conditional input field for the custom type label
+- State management for the custom label
+- Validation to require the label when "Custom" is selected
+- Update the insert logic to include `custom_type_label`
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/import-export/QuickAddSection.tsx` | Add custom type option, label input, update insert logic |
+| `src/components/QuickAddToolbar.tsx` | Add custom type option, label input, update insert logic |
+| `src/components/onboarding/QuickStartWizard.tsx` | Add custom type option, label input, update insert logic |
 
 ---
 
 ## Implementation Details
 
-### QuickAddSection Component Structure
+### 1. QuickAddSection.tsx
 
+**State additions:**
 ```typescript
-interface QuickAddSectionProps {}
-
-// State for each form
-- categoryForm: { name, color, description }
-- locationForm: { name, type, parentId, description }
-- itemForm: { name, categoryId, locationId, initialStock, minStock, unit }
-
-// Data fetching for dropdowns
-- categories: fetch on mount + after adding category
-- locations: fetch on mount + after adding location
-
-// Handlers
-- handleAddCategory()
-- handleAddLocation()  
-- handleAddItem()
+const [customTypeLabel, setCustomTypeLabel] = useState('');
 ```
 
-### Database Interactions
-- Uses `supabase.rpc('generate_item_code')` for item codes
-- Uses `supabase.rpc('generate_location_code', { _type })` for location codes
-- Direct inserts to `categories`, `locations`, `items` tables
+**Type selection:**
+```typescript
+// Extended type for UI
+type LocationTypeWithCustom = LocationType | 'custom';
+
+// Updated state type
+const [locationType, setLocationType] = useState<LocationTypeWithCustom>('room');
+```
+
+**UI additions:**
+- Add "Custom" option with Settings icon to the type dropdown
+- Show conditional input for custom label when "Custom" is selected
+
+**Insert logic update:**
+```typescript
+const dbLocationType: LocationType = locationType === 'custom' ? 'box' : locationType;
+const customLabel = locationType === 'custom' ? customTypeLabel.trim() : null;
+
+// Include in insert:
+custom_type_label: customLabel,
+```
+
+### 2. QuickAddToolbar.tsx
+
+**State additions:**
+```typescript
+const [customTypeLabel, setCustomTypeLabel] = useState('');
+```
+
+**LOCATION_TYPES update:**
+```typescript
+const LOCATION_TYPES = [
+  { value: 'building', label: 'Building' },
+  { value: 'room', label: 'Room' },
+  { value: 'shelf', label: 'Shelf' },
+  { value: 'box', label: 'Box' },
+  { value: 'drawer', label: 'Drawer' },
+  { value: 'custom', label: 'Custom' },
+];
+```
+
+**Form additions:**
+- Conditional input for custom label
+- Validation for custom label requirement
+
+### 3. QuickStartWizard.tsx
+
+**State update:**
+```typescript
+const [locationData, setLocationData] = useState({
+  name: '',
+  description: '',
+  locationType: 'room' as string,
+  customTypeLabel: '',
+});
+```
+
+**LOCATION_TYPES update:**
+```typescript
+const LOCATION_TYPES = [
+  { value: 'building', label: 'Building' },
+  { value: 'room', label: 'Room' },
+  { value: 'shelf', label: 'Shelf' },
+  { value: 'box', label: 'Box' },
+  { value: 'drawer', label: 'Drawer' },
+  { value: 'custom', label: 'Custom' },
+] as const;
+```
+
+**Form additions:**
+- Conditional input for custom label when "Custom" is selected
+
+---
+
+## Validation Rules
+
+When "Custom" type is selected:
+1. Custom label field becomes required
+2. Show error toast if label is empty on submit
+3. Trim whitespace from the label
+
+---
+
+## Reset Form Updates
+
+Each component's reset function needs to clear the custom type label:
+```typescript
+setCustomTypeLabel('');
+// or for QuickStartWizard:
+setLocationData(prev => ({ ...prev, customTypeLabel: '' }));
+```
 
 ---
 
 ## Summary
 
-This combined update will:
-1. **Fix the data reset feature** by correcting the authentication method in the edge function
-2. **Add convenient quick add forms** to the Import/Export page for creating individual records
-3. **Improve data entry workflow** - users can add missing categories/locations before importing items
-4. **Maintain consistency** - uses same patterns as existing QuickAddToolbar component
+This update ensures consistent user experience across all location creation interfaces:
+- Users can create custom location types from any quick add interface
+- The pattern matches the main Locations page implementation
+- Database compatibility is maintained using `box` as the base type
+- Custom labels are properly stored and displayed
