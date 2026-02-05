@@ -41,6 +41,7 @@ const LOCATION_TYPES = [
   { value: 'shelf', label: 'Shelf' },
   { value: 'box', label: 'Box' },
   { value: 'drawer', label: 'Drawer' },
+  { value: 'custom', label: 'Custom' },
 ];
 
 export function QuickAddToolbar() {
@@ -59,6 +60,7 @@ export function QuickAddToolbar() {
 
   const [locationName, setLocationName] = useState('');
   const [locationType, setLocationType] = useState<string>('room');
+  const [customTypeLabel, setCustomTypeLabel] = useState('');
 
   const [itemName, setItemName] = useState('');
   const [itemCategoryId, setItemCategoryId] = useState<string>('');
@@ -70,6 +72,7 @@ export function QuickAddToolbar() {
     setCategoryColor(CATEGORY_COLORS[0]);
     setLocationName('');
     setLocationType('room');
+    setCustomTypeLabel('');
     setItemName('');
     setItemCategoryId('');
     setItemLocationId('');
@@ -122,12 +125,21 @@ export function QuickAddToolbar() {
       return;
     }
 
+    if (locationType === 'custom' && !customTypeLabel.trim()) {
+      toast.error('Custom type label is required');
+      return;
+    }
+
     setIsLoading(true);
     try {
+      // Determine database type and custom label
+      const dbLocationType = locationType === 'custom' ? 'box' : locationType;
+      const customLabel = locationType === 'custom' ? customTypeLabel.trim() : null;
+
       if (isOfflineMode) {
         const result = await offlineLocations.createLocation({
           name: locationName.trim(),
-          locationType: locationType as 'building' | 'room' | 'shelf' | 'box' | 'drawer',
+          locationType: dbLocationType as 'building' | 'room' | 'shelf' | 'box' | 'drawer',
           description: null,
           parentId: null,
           isActive: 1 as unknown as boolean,
@@ -135,12 +147,13 @@ export function QuickAddToolbar() {
         if (!result.success) throw new Error(result.error);
       } else {
         const { data: codeData } = await supabase.rpc('generate_location_code', {
-          _type: locationType as 'building' | 'room' | 'shelf' | 'box' | 'drawer',
+          _type: dbLocationType as 'building' | 'room' | 'shelf' | 'box' | 'drawer',
         });
 
         const { error } = await supabase.from('locations').insert([{
           name: locationName.trim(),
-          location_type: locationType as 'building' | 'room' | 'shelf' | 'box' | 'drawer',
+          location_type: dbLocationType as 'building' | 'room' | 'shelf' | 'box' | 'drawer',
+          custom_type_label: customLabel,
           code: codeData || `LOC-${Date.now()}`,
         }]);
         if (error) throw error;
@@ -312,6 +325,18 @@ export function QuickAddToolbar() {
               </div>
             </div>
           </div>
+          {locationType === 'custom' && (
+            <div className="space-y-2">
+              <Label htmlFor="location-custom-label">Custom Type Label *</Label>
+              <Input
+                id="location-custom-label"
+                placeholder="e.g., Cabinet, Rack"
+                value={customTypeLabel}
+                onChange={(e) => setCustomTypeLabel(e.target.value)}
+                autoFocus
+              />
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>
             <Button onClick={handleCreateCategory} disabled={isLoading}>

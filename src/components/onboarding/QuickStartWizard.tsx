@@ -69,6 +69,7 @@ const LOCATION_TYPES = [
   { value: 'shelf', label: 'Shelf' },
   { value: 'box', label: 'Box' },
   { value: 'drawer', label: 'Drawer' },
+  { value: 'custom', label: 'Custom' },
 ] as const;
 
 export function QuickStartWizard({ open, onOpenChange, onComplete }: QuickStartWizardProps) {
@@ -93,7 +94,8 @@ export function QuickStartWizard({ open, onOpenChange, onComplete }: QuickStartW
   const [locationData, setLocationData] = useState({
     name: '',
     description: '',
-    locationType: 'room' as typeof LOCATION_TYPES[number]['value'],
+    locationType: 'room' as string,
+    customTypeLabel: '',
   });
   
   const [itemData, setItemData] = useState({
@@ -174,14 +176,23 @@ export function QuickStartWizard({ open, onOpenChange, onComplete }: QuickStartW
       toast({ title: 'Error', description: 'Location name is required', variant: 'destructive' });
       return;
     }
-    
+
+    if (locationData.locationType === 'custom' && !locationData.customTypeLabel.trim()) {
+      toast({ title: 'Error', description: 'Custom type label is required', variant: 'destructive' });
+      return;
+    }
+
     setIsLoading(true);
     try {
+      // Determine database type and custom label
+      const dbLocationType = locationData.locationType === 'custom' ? 'box' : locationData.locationType;
+      const customLabel = locationData.locationType === 'custom' ? locationData.customTypeLabel.trim() : null;
+
       if (isOfflineMode) {
         const result = await offlineLocations.createLocation({
           name: locationData.name,
           description: locationData.description || null,
-          locationType: locationData.locationType,
+          locationType: dbLocationType as 'building' | 'room' | 'shelf' | 'box' | 'drawer',
           parentId: null,
           isActive: true,
         });
@@ -193,15 +204,16 @@ export function QuickStartWizard({ open, onOpenChange, onComplete }: QuickStartW
       } else {
         // Generate location code
         const { data: codeData } = await supabase.rpc('generate_location_code', {
-          _type: locationData.locationType,
+          _type: dbLocationType as 'building' | 'room' | 'shelf' | 'box' | 'drawer',
         });
-        
+
         const { data, error } = await supabase
           .from('locations')
           .insert({
             name: locationData.name,
             description: locationData.description || null,
-            location_type: locationData.locationType,
+            location_type: dbLocationType as 'building' | 'room' | 'shelf' | 'box' | 'drawer',
+            custom_type_label: customLabel,
             code: codeData || `LOC-${Date.now()}`,
           })
           .select('id')
@@ -452,7 +464,7 @@ export function QuickStartWizard({ open, onOpenChange, onComplete }: QuickStartW
                   <Label htmlFor="loc-type">Location Type</Label>
                   <Select
                     value={locationData.locationType}
-                    onValueChange={(value: typeof LOCATION_TYPES[number]['value']) => 
+                    onValueChange={(value: string) => 
                       setLocationData(prev => ({ ...prev, locationType: value }))
                     }
                   >
@@ -468,7 +480,19 @@ export function QuickStartWizard({ open, onOpenChange, onComplete }: QuickStartW
                     </SelectContent>
                   </Select>
                 </div>
-                
+
+                {locationData.locationType === 'custom' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="loc-custom-label">Custom Type Label *</Label>
+                    <Input
+                      id="loc-custom-label"
+                      placeholder="e.g., Cabinet, Rack"
+                      value={locationData.customTypeLabel}
+                      onChange={(e) => setLocationData(prev => ({ ...prev, customTypeLabel: e.target.value }))}
+                    />
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="loc-desc">Description (optional)</Label>
                   <Textarea
