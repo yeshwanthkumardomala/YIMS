@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { logSystemEvent } from '@/lib/systemLogger';
@@ -45,6 +45,7 @@ import { CodeGenerator } from '@/components/CodeGenerator';
 import { ExportDropdown } from '@/components/ExportDropdown';
 import { toCSV, downloadCSV } from '@/lib/csvUtils';
 import { downloadExcelSingleSheet } from '@/lib/excelUtils';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import type { Location, LocationType } from '@/types/database';
 
 const LOCATION_TYPES: { value: LocationType; label: string; icon: typeof Building2 }[] = [
@@ -85,11 +86,8 @@ export default function Locations() {
     custom_type_label: '',
   });
 
-  useEffect(() => {
-    fetchLocations();
-  }, []);
-
-  async function fetchLocations() {
+  // Wrap fetchLocations in useCallback for realtime
+  const fetchLocations = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('locations')
@@ -106,7 +104,17 @@ export default function Locations() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    fetchLocations();
+  }, [fetchLocations]);
+
+  // Subscribe to realtime changes for locations table
+  useRealtimeSubscription({
+    table: 'locations',
+    onAnyChange: fetchLocations,
+  });
 
   function resetForm() {
     setFormData({

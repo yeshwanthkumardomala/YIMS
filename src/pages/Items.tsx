@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { logSystemEvent } from '@/lib/systemLogger';
@@ -45,6 +45,7 @@ import { ExportDropdown } from '@/components/ExportDropdown';
 import { toCSV, downloadCSV } from '@/lib/csvUtils';
 import { downloadExcelSingleSheet } from '@/lib/excelUtils';
 import { getLocationTypeDisplay } from '@/lib/utils';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import type { Item, Category, Location, ItemVariant, ItemFilters } from '@/types/database';
 
 const ITEM_EXPORT_COLUMNS = [
@@ -95,11 +96,8 @@ export default function Items() {
 
   const [variants, setVariants] = useState<Omit<ItemVariant, 'id' | 'parent_item_id' | 'created_by' | 'created_at' | 'updated_at'>[]>([]);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  async function fetchData() {
+  // Wrap fetchData in useCallback for realtime
+  const fetchData = useCallback(async () => {
     try {
       const [itemsRes, categoriesRes, locationsRes] = await Promise.all([
         supabase
@@ -128,7 +126,17 @@ export default function Items() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Subscribe to realtime changes for items table
+  useRealtimeSubscription({
+    table: 'items',
+    onAnyChange: fetchData,
+  });
 
   function resetForm() {
     setFormData({

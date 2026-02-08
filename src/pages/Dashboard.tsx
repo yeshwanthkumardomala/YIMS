@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +22,7 @@ import { DashboardCharts } from '@/components/dashboard/DashboardCharts';
 import { RecentESP32Scans } from '@/components/dashboard/RecentESP32Scans';
 import { QuickStartWizard } from '@/components/onboarding/QuickStartWizard';
 import { useQuickStartWizard } from '@/hooks/useQuickStartWizard';
+import { useMultiTableRealtime } from '@/hooks/useRealtimeSubscription';
 import type { DashboardStats, StockTransaction } from '@/types/database';
 import { subDays } from 'date-fns';
 
@@ -44,75 +45,80 @@ export default function Dashboard() {
     }
   }, [wizardLoading, shouldShowWizard]);
 
-  useEffect(() => {
-    async function fetchDashboardData() {
-      try {
-        // Fetch item count
-        const { count: itemCount } = await supabase
-          .from('items')
-          .select('*', { count: 'exact', head: true })
-          .eq('is_active', true);
+  // Wrap fetchDashboardData in useCallback for realtime
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      // Fetch item count
+      const { count: itemCount } = await supabase
+        .from('items')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true);
 
-        // For now, count items with stock < minimum_stock
-        const { data: allItems } = await supabase
-          .from('items')
-          .select('current_stock, minimum_stock')
-          .eq('is_active', true);
-        
-        const lowStockCount = allItems?.filter(item => item.current_stock < item.minimum_stock).length || 0;
+      // For now, count items with stock < minimum_stock
+      const { data: allItems } = await supabase
+        .from('items')
+        .select('current_stock, minimum_stock')
+        .eq('is_active', true);
+      
+      const lowStockCount = allItems?.filter(item => item.current_stock < item.minimum_stock).length || 0;
 
-        // Fetch location count
-        const { count: locationCount } = await supabase
-          .from('locations')
-          .select('*', { count: 'exact', head: true })
-          .eq('is_active', true);
+      // Fetch location count
+      const { count: locationCount } = await supabase
+        .from('locations')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true);
 
-        // Fetch recent transactions count (last 24h)
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        
-        const { count: transactionCount } = await supabase
-          .from('stock_transactions')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', yesterday.toISOString());
+      // Fetch recent transactions count (last 24h)
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const { count: transactionCount } = await supabase
+        .from('stock_transactions')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', yesterday.toISOString());
 
-        setStats({
-          totalItems: itemCount || 0,
-          lowStockItems: lowStockCount,
-          totalLocations: locationCount || 0,
-          recentTransactions: transactionCount || 0,
-        });
+      setStats({
+        totalItems: itemCount || 0,
+        lowStockItems: lowStockCount,
+        totalLocations: locationCount || 0,
+        recentTransactions: transactionCount || 0,
+      });
 
-        // Fetch recent transactions for display
-        const { data: transactions } = await supabase
-          .from('stock_transactions')
-          .select(`
-            *,
-            item:items(name, code)
-          `)
-          .order('created_at', { ascending: false })
-          .limit(5);
+      // Fetch recent transactions for display
+      const { data: transactions } = await supabase
+        .from('stock_transactions')
+        .select(`
+          *,
+          item:items(name, code)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5);
 
-        setRecentTransactions((transactions as unknown as StockTransaction[]) || []);
+      setRecentTransactions((transactions as unknown as StockTransaction[]) || []);
 
-        // Fetch transactions for charts (last 14 days)
-        const twoWeeksAgo = subDays(new Date(), 14);
-        const { data: chartData } = await supabase
-          .from('stock_transactions')
-          .select('id, transaction_type, quantity, created_at')
-          .gte('created_at', twoWeeksAgo.toISOString())
-          .order('created_at', { ascending: true });
+      // Fetch transactions for charts (last 14 days)
+      const twoWeeksAgo = subDays(new Date(), 14);
+      const { data: chartData } = await supabase
+        .from('stock_transactions')
+        .select('id, transaction_type, quantity, created_at')
+        .gte('created_at', twoWeeksAgo.toISOString())
+        .order('created_at', { ascending: true });
 
-        setChartTransactions(chartData || []);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
+      setChartTransactions(chartData || []);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
     }
-
-    fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  // Subscribe to realtime changes for dashboard data
+  const dashboardTables = ['items', 'locations', 'stock_transactions'];
+  useMultiTableRealtime(dashboardTables, fetchDashboardData);
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
