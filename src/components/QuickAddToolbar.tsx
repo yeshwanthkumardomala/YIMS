@@ -325,18 +325,6 @@ export function QuickAddToolbar() {
               </div>
             </div>
           </div>
-          {locationType === 'custom' && (
-            <div className="space-y-2">
-              <Label htmlFor="location-custom-label">Custom Type Label *</Label>
-              <Input
-                id="location-custom-label"
-                placeholder="e.g., Cabinet, Rack"
-                value={customTypeLabel}
-                onChange={(e) => setCustomTypeLabel(e.target.value)}
-                autoFocus
-              />
-            </div>
-          )}
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>
             <Button onClick={handleCreateCategory} disabled={isLoading}>
@@ -381,6 +369,17 @@ export function QuickAddToolbar() {
                 </SelectContent>
               </Select>
             </div>
+            {locationType === 'custom' && (
+              <div className="space-y-2">
+                <Label htmlFor="location-custom-label">Custom Type Label *</Label>
+                <Input
+                  id="location-custom-label"
+                  placeholder="e.g., Cabinet, Rack"
+                  value={customTypeLabel}
+                  onChange={(e) => setCustomTypeLabel(e.target.value)}
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>

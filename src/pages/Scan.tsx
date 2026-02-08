@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import type { Item, Location } from '@/types/database';
+import { getLocationTypeDisplay } from '@/lib/utils';
 
 interface ScanResult {
   type: 'item' | 'location' | 'unknown';
@@ -363,7 +364,7 @@ export default function Scan() {
                       {(scanResult.data as Location).code}
                     </p>
                     <Badge variant="secondary" className="mt-2 capitalize">
-                      {(scanResult.data as Location).location_type}
+                      {getLocationTypeDisplay(scanResult.data as Location)}
                     </Badge>
                   </div>
                 </div>

@@ -45,6 +45,7 @@ export interface Location {
   code: string;
   name: string;
   location_type: LocationType;
+  custom_type_label?: string | null;
   parent_id: string | null;
   description: string | null;
   is_active: boolean;
