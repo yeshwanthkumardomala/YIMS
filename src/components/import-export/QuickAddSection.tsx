@@ -26,6 +26,7 @@ interface Location {
   name: string;
   code: string;
   location_type: LocationType;
+  custom_type_label?: string | null;
 }
 
 const LOCATION_TYPES: { value: LocationTypeWithCustom; label: string }[] = [
@@ -79,7 +80,7 @@ export function QuickAddSection() {
   const fetchData = async () => {
     const [catResult, locResult] = await Promise.all([
       supabase.from('categories').select('id, name, color').eq('is_active', true).order('name'),
-      supabase.from('locations').select('id, name, code, location_type').eq('is_active', true).order('name'),
+      supabase.from('locations').select('id, name, code, location_type, custom_type_label').eq('is_active', true).order('name'),
     ]);
     
     if (catResult.data) setCategories(catResult.data);
@@ -361,7 +362,7 @@ export function QuickAddSection() {
                     <SelectItem value="">None (top-level)</SelectItem>
                     {locations.map((loc) => (
                       <SelectItem key={loc.id} value={loc.id}>
-                        {loc.name} ({loc.location_type})
+                        {loc.name} ({loc.custom_type_label || loc.location_type})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -453,7 +454,7 @@ export function QuickAddSection() {
                     <SelectItem value="">No location</SelectItem>
                     {locations.map((loc) => (
                       <SelectItem key={loc.id} value={loc.id}>
-                        {loc.name} ({loc.location_type})
+                        {loc.name} ({loc.custom_type_label || loc.location_type})
                       </SelectItem>
                     ))}
                   </SelectContent>

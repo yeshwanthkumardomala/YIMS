@@ -25,6 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Loader2, Package, Clock, AlertCircle } from 'lucide-react';
 import type { Item, Location } from '@/types/database';
+import { getLocationTypeDisplay } from '@/lib/utils';
 import { ActionButtons, type InventoryAction, getActionConfig } from '@/components/inventory/ActionButtons';
 import { NegativeStockIndicator } from '@/components/inventory/NegativeStockIndicator';
 import { useSystemPolicies } from '@/hooks/useSystemPolicies';
@@ -482,7 +483,7 @@ export default function Stock() {
                   <SelectContent>
                     {locations.map((loc) => (
                       <SelectItem key={loc.id} value={loc.id}>
-                        {loc.name}
+                        {loc.name} ({getLocationTypeDisplay(loc)})
                       </SelectItem>
                     ))}
                   </SelectContent>

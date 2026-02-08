@@ -44,6 +44,7 @@ import { AdvancedFilters } from '@/components/filters/AdvancedFilters';
 import { ExportDropdown } from '@/components/ExportDropdown';
 import { toCSV, downloadCSV } from '@/lib/csvUtils';
 import { downloadExcelSingleSheet } from '@/lib/excelUtils';
+import { getLocationTypeDisplay } from '@/lib/utils';
 import type { Item, Category, Location, ItemVariant, ItemFilters } from '@/types/database';
 
 const ITEM_EXPORT_COLUMNS = [
@@ -345,7 +346,7 @@ export default function Items() {
   };
 
   const categoryOptions = categories.map(c => ({ value: c.id, label: c.name }));
-  const locationOptions = locations.map(l => ({ value: l.id, label: l.name }));
+  const locationOptions = locations.map(l => ({ value: l.id, label: `${l.name} (${getLocationTypeDisplay(l)})` }));
 
   // Convert items to batch print format
   const batchPrintItems = items.map(i => ({ id: i.id, code: i.code, name: i.name }));
@@ -488,7 +489,7 @@ export default function Items() {
                           <SelectContent>
                             {locations.map((loc) => (
                               <SelectItem key={loc.id} value={loc.id}>
-                                {loc.name}
+                                {loc.name} ({getLocationTypeDisplay(loc)})
                               </SelectItem>
                             ))}
                           </SelectContent>
