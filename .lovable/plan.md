@@ -1,162 +1,243 @@
+YIMS Core System Upgrade — QuickAdd + Custom Types + Realtime (Tab-Aware Lean Mode)
 
-# Add Custom Location Type to All Quick Add Sections
+Upgrade the application using a minimal, reusable, credit-efficient implementation aligned with the existing YIMS navigation structure. Do not redesign UI or break current workflows. Improve functionality within existing tabs only.
 
-## Overview
+Scope — Apply Features Per Existing Tabs
+Dashboard
 
-Add the "Custom" location type option consistently across all location creation interfaces in the application. This allows users to define their own location labels (e.g., "Cabinet", "Rack", "Container") beyond the fixed database enum types.
+No structural change
 
----
+Allow realtime refresh of summary counts (items, stock, low stock)
 
-## Current State
+Items
 
-The custom location type option was added to the main **Locations page** (`src/pages/Locations.tsx`) but is missing from:
+Enable Universal Quick Add inside:
 
-1. **QuickAddSection** - Import/Export page (`src/components/import-export/QuickAddSection.tsx`)
-2. **QuickAddToolbar** - Floating action button (`src/components/QuickAddToolbar.tsx`)
-3. **QuickStartWizard** - Onboarding flow (`src/components/onboarding/QuickStartWizard.tsx`)
+Location selector
 
----
+Category selector
 
-## Technical Implementation
+Show location as: Name (custom_type_label || location_type)
 
-### How Custom Types Work
+Realtime update when items created/edited/deleted
 
-The database has a `location_type` enum with fixed values (`building`, `room`, `shelf`, `box`, `drawer`). To support custom types:
+Prevent duplicate category/location creation
 
-1. User selects "Custom" in the dropdown
-2. A new input field appears for the custom label (e.g., "Cabinet")
-3. On save, the system uses `box` as the base `location_type` for database compatibility
-4. The custom label is stored in the `custom_type_label` column
-5. When displaying, the custom label takes precedence over the base type
+Categories
 
-### Changes Required
+Add Quick Add inside parent selector
 
-**For each component, add:**
-- A "Custom" option to the location type dropdown
-- A conditional input field for the custom type label
-- State management for the custom label
-- Validation to require the label when "Custom" is selected
-- Update the insert logic to include `custom_type_label`
+Prevent duplicate category names (case-insensitive)
 
----
+Realtime sync for category create/update/delete
 
-## Files to Modify
+Locations
 
-| File | Changes |
-|------|---------|
-| `src/components/import-export/QuickAddSection.tsx` | Add custom type option, label input, update insert logic |
-| `src/components/QuickAddToolbar.tsx` | Add custom type option, label input, update insert logic |
-| `src/components/onboarding/QuickStartWizard.tsx` | Add custom type option, label input, update insert logic |
+Ensure custom_type_label is displayed everywhere
 
----
+Use helper:
 
-## Implementation Details
+getLocationDisplay(location)
 
-### 1. QuickAddSection.tsx
 
-**State additions:**
-```typescript
-const [customTypeLabel, setCustomTypeLabel] = useState('');
-```
+Enable Quick Add for parent location
 
-**Type selection:**
-```typescript
-// Extended type for UI
-type LocationTypeWithCustom = LocationType | 'custom';
+Realtime update for location changes
 
-// Updated state type
-const [locationType, setLocationType] = useState<LocationTypeWithCustom>('room');
-```
+Never show raw location_type directly
 
-**UI additions:**
-- Add "Custom" option with Settings icon to the type dropdown
-- Show conditional input for custom label when "Custom" is selected
+Stock Operations
 
-**Insert logic update:**
-```typescript
-const dbLocationType: LocationType = locationType === 'custom' ? 'box' : locationType;
-const customLabel = locationType === 'custom' ? customTypeLabel.trim() : null;
+Quick Add for:
 
-// Include in insert:
-custom_type_label: customLabel,
-```
+Location
 
-### 2. QuickAddToolbar.tsx
+Item (optional minimal)
 
-**State additions:**
-```typescript
-const [customTypeLabel, setCustomTypeLabel] = useState('');
-```
+Realtime stock update sync
 
-**LOCATION_TYPES update:**
-```typescript
-const LOCATION_TYPES = [
-  { value: 'building', label: 'Building' },
-  { value: 'room', label: 'Room' },
-  { value: 'shelf', label: 'Shelf' },
-  { value: 'box', label: 'Box' },
-  { value: 'drawer', label: 'Drawer' },
-  { value: 'custom', label: 'Custom' },
-];
-```
+Prevent duplicate locations
 
-**Form additions:**
-- Conditional input for custom label
-- Validation for custom label requirement
+Scan
 
-### 3. QuickStartWizard.tsx
+Display location using custom label
 
-**State update:**
-```typescript
-const [locationData, setLocationData] = useState({
-  name: '',
-  description: '',
-  locationType: 'room' as string,
-  customTypeLabel: '',
-});
-```
+Realtime reflect stock/location updates
 
-**LOCATION_TYPES update:**
-```typescript
-const LOCATION_TYPES = [
-  { value: 'building', label: 'Building' },
-  { value: 'room', label: 'Room' },
-  { value: 'shelf', label: 'Shelf' },
-  { value: 'box', label: 'Box' },
-  { value: 'drawer', label: 'Drawer' },
-  { value: 'custom', label: 'Custom' },
-] as const;
-```
+No UI redesign
 
-**Form additions:**
-- Conditional input for custom label when "Custom" is selected
+History
 
----
+Realtime append new activity entries
 
-## Validation Rules
+No heavy filters or redesign
 
-When "Custom" type is selected:
-1. Custom label field becomes required
-2. Show error toast if label is empty on submit
-3. Trim whitespace from the label
+Import / Export
 
----
+Use updated entity display (custom labels)
 
-## Reset Form Updates
+No feature expansion
 
-Each component's reset function needs to clear the custom type label:
-```typescript
-setCustomTypeLabel('');
-// or for QuickStartWizard:
-setLocationData(prev => ({ ...prev, customTypeLabel: '' }));
-```
+Reports
 
----
+Use corrected location display logic
 
-## Summary
+Allow realtime refresh when data changes
 
-This update ensures consistent user experience across all location creation interfaces:
-- Users can create custom location types from any quick add interface
-- The pattern matches the main Locations page implementation
-- Database compatibility is maintained using `box` as the base type
-- Custom labels are properly stored and displayed
+Approvals
+
+Realtime reflect approve/reject status
+
+No workflow change
+
+Users
+
+No structural change
+
+Optional realtime refresh (lightweight)
+
+System Logs
+
+Realtime append new logs
+
+No heavy UI
+
+Settings
+
+No redesign
+
+Keep compatibility
+
+Core Features to Implement
+1. Universal Quick Add (Reusable Component)
+
+Used in:
+Items / Categories / Locations / Stock Operations / Filters
+
+Requirements:
+
+Searchable dropdown
+
+“+ Add New” option
+
+Inline create or small modal
+
+Auto-select after create
+
+Prevent duplicate names (trim + case-insensitive)
+
+Optimistic UI update
+
+Rollback on DB failure
+
+Reuse existing service/API layer
+
+Minimal UI only
+
+2. Global Custom Location Type Display
+
+Central helpers:
+
+getLocationTypeDisplay(location)
+getLocationDisplay(location)
+
+
+Rules:
+
+Replace ALL UI usage of location.location_type
+
+Handle null / empty safely
+
+Ensure queries fetch custom_type_label
+
+Never render blank
+
+No schema change
+
+3. Real-Time Multi-User Sync (Lightweight)
+
+Enable Supabase realtime for:
+
+items
+
+locations
+
+stock
+
+categories
+
+history (append-only)
+
+Rules:
+
+Reflect insert/update/delete from other users
+
+Update local cache instead of full refetch when possible
+
+Ignore own-client echo events
+
+Prevent infinite re-render loops
+
+Auto unsubscribe on component unmount
+
+No custom websocket engine
+
+No global state rewrite
+
+4. Performance Rules
+
+Memoize dropdown options
+
+Avoid repeated DB calls
+
+Deduplicate identical queries
+
+Optimistic updates
+
+No duplicate display logic
+
+Keep bundle small
+
+No heavy dependencies
+
+5. Architecture (Do Not Break Existing Flow)
+
+Reusable Components
+→ Existing Entity Service Layer
+→ Supabase
+→ Local Cache / State
+→ UI Sync
+
+Maintain backward compatibility.
+
+6. Stability & Safety
+
+Prevent duplicate entity creation
+
+Handle null/undefined safely
+
+Graceful DB failure fallback
+
+No UI crash on missing fields
+
+Safe realtime unsubscribe
+
+No memory leaks
+
+No workflow regression
+
+Deliver Goal
+
+Implement a stable, tab-aware core upgrade providing:
+
+Quick Add across relevant selectors
+
+Correct custom location label everywhere
+
+Lightweight realtime multi-user sync
+
+Clean reusable architecture
+
+No regressions
+
+Credit-efficient build
