@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { logSystemEvent } from '@/lib/systemLogger';
@@ -60,6 +60,7 @@ import {
 import { ExportDropdown } from '@/components/ExportDropdown';
 import { toCSV, downloadCSV } from '@/lib/csvUtils';
 import { downloadExcelSingleSheet } from '@/lib/excelUtils';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 
 // Available icons for categories
 const CATEGORY_ICONS: { value: string; label: string; icon: LucideIcon }[] = [
@@ -131,11 +132,8 @@ export default function Categories() {
     icon: 'package',
   });
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  async function fetchCategories() {
+  // Wrap fetchCategories in useCallback for realtime
+  const fetchCategories = useCallback(async () => {
     try {
       // Fetch categories
       const { data: categoriesData, error: categoriesError } = await supabase
@@ -177,7 +175,17 @@ export default function Categories() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  // Subscribe to realtime changes for categories table
+  useRealtimeSubscription({
+    table: 'categories',
+    onAnyChange: fetchCategories,
+  });
 
   function resetForm() {
     setFormData({
