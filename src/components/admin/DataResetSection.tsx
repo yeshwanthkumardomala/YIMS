@@ -129,6 +129,9 @@ export function DataResetSection() {
 
     setIsSubmitting(true);
     try {
+      // Refresh auth session before critical operations
+      await supabase.auth.refreshSession();
+
       // Create approval request
       const { data, error } = await supabase
         .from('approval_requests')
@@ -142,51 +145,85 @@ export function DataResetSection() {
         .select()
         .single();
 
-      if (error) throw error;
-
-      // Log the request
-      await logSystemEvent({
-        eventType: 'data_reset_requested',
-        description: 'Data reset requested',
-        metadata: { reason: reason.trim() }
-      });
-
-      // Notify primary admin
-      const { data: primaryAdminId } = await supabase.rpc('get_primary_admin_id');
-      
-      if (primaryAdminId && primaryAdminId !== user.id) {
-        await supabase.from('notifications').insert({
-          user_id: primaryAdminId,
-          title: 'Data Reset Request',
-          message: 'An admin has requested a full data reset. Your approval is required.',
-          type: 'warning',
-          category: 'system',
-          action_url: '/settings',
-          metadata: { approval_request_id: data.id }
-        });
+      if (error) {
+        console.error('Failed to create approval request:', error);
+        throw error;
       }
 
-      toast.success(
-        isPrimaryAdmin 
-          ? 'Reset request created. You can approve it now.'
-          : 'Reset request submitted. Waiting for primary admin approval.'
-      );
+      // Non-blocking: Log the request
+      try {
+        await logSystemEvent({
+          eventType: 'data_reset_requested',
+          description: 'Data reset requested',
+          metadata: { reason: reason.trim() }
+        });
+      } catch (e) {
+        console.error('Non-critical: failed to log system event', e);
+      }
 
-      // Refresh pending request
-      setPendingRequest({
-        id: data.id,
-        requested_by: user.id,
-        reason: reason.trim(),
-        created_at: data.created_at,
-        requester_name: 'You'
-      });
+      if (isPrimaryAdmin) {
+        // Primary admin: directly execute the reset
+        handleCloseDialog();
+        setIsExecuting(true);
 
-      handleCloseDialog();
+        const { data: resetData, error: resetError } = await supabase.functions.invoke('data-reset', {
+          body: { approval_request_id: data.id }
+        });
+
+        if (resetError) {
+          console.error('Edge function invocation error:', resetError);
+          throw new Error('Failed to execute data reset');
+        }
+
+        if (resetData?.error) {
+          console.error('Data reset returned error:', resetData.error);
+          throw new Error(resetData.error);
+        }
+
+        toast.success('Data reset completed successfully');
+        setPendingRequest(null);
+
+        // Refresh the page after a short delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        // Non-primary admin: notify and wait
+        try {
+          const { data: primaryAdminId } = await supabase.rpc('get_primary_admin_id');
+          if (primaryAdminId && primaryAdminId !== user.id) {
+            await supabase.from('notifications').insert({
+              user_id: primaryAdminId,
+              title: 'Data Reset Request',
+              message: 'An admin has requested a full data reset. Your approval is required.',
+              type: 'warning',
+              category: 'system',
+              action_url: '/settings',
+              metadata: { approval_request_id: data.id }
+            });
+          }
+        } catch (e) {
+          console.error('Non-critical: failed to send notification', e);
+        }
+
+        toast.success('Reset request submitted. Waiting for primary admin approval.');
+
+        setPendingRequest({
+          id: data.id,
+          requested_by: user.id,
+          reason: reason.trim(),
+          created_at: data.created_at,
+          requester_name: 'You'
+        });
+
+        handleCloseDialog();
+      }
     } catch (error) {
-      console.error('Error submitting reset request:', error);
-      toast.error('Failed to submit reset request');
+      console.error('Error in data reset flow:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to submit reset request');
     } finally {
       setIsSubmitting(false);
+      setIsExecuting(false);
     }
   };
 
@@ -509,6 +546,13 @@ export function DataResetSection() {
                   onChange={(e) => setConfirmText(e.target.value)}
                   className="font-mono"
                 />
+                {isPrimaryAdmin && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                    <p className="text-destructive font-medium">
+                      As primary admin, the reset will execute immediately after submission.
+                    </p>
+                  </div>
+                )}
                 {!isPrimaryAdmin && (
                   <div className="rounded-lg border bg-muted/50 p-3 text-sm">
                     <p className="text-muted-foreground">
@@ -530,10 +574,10 @@ export function DataResetSection() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Submitting...
+                      {isPrimaryAdmin ? 'Executing Reset...' : 'Submitting...'}
                     </>
                   ) : (
-                    'Submit Reset Request'
+                    isPrimaryAdmin ? 'Execute Reset Now' : 'Submit Reset Request'
                   )}
                 </Button>
               </DialogFooter>

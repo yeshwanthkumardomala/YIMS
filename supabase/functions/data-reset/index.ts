@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
       try {
         const { count, error } = await serviceClient
           .from(table)
-          .delete()
+          .delete({ count: 'exact' })
           .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all rows
         
         if (error) {
@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
     // Clear approval requests except the current one
     const { count: approvalCount } = await serviceClient
       .from('approval_requests')
-      .delete()
+      .delete({ count: 'exact' })
       .neq('id', approval_request_id);
     
     deletionResults['approval_requests'] = approvalCount || 0;
