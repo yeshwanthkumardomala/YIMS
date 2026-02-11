@@ -1,243 +1,97 @@
-YIMS Core System Upgrade — QuickAdd + Custom Types + Realtime (Tab-Aware Lean Mode)
 
-Upgrade the application using a minimal, reusable, credit-efficient implementation aligned with the existing YIMS navigation structure. Do not redesign UI or break current workflows. Improve functionality within existing tabs only.
 
-Scope — Apply Features Per Existing Tabs
-Dashboard
+# Fix Data Reset "Failed to Submit" Error and Streamline Primary Admin Flow
 
-No structural change
+## Root Cause Analysis
 
-Allow realtime refresh of summary counts (items, stock, low stock)
+The `handleSubmitRequest` function in `DataResetSection.tsx` fails because non-critical operations (notification insert, RPC call) are in the same try/catch as the critical approval request insert. If any of these secondary operations fail (e.g., due to a stale auth session or transient network issue), the entire flow is reported as a failure even though the core insert may have succeeded.
 
-Items
+Additionally, the current flow forces the primary admin through a two-step process (submit request, then separately approve), which contradicts the design intent of direct execution after the 3-step safety verification.
 
-Enable Universal Quick Add inside:
+## Changes
 
-Location selector
+### 1. DataResetSection.tsx -- Fix error handling and streamline primary admin flow
 
-Category selector
+**Error handling fixes:**
+- Wrap notification insert and `get_primary_admin_id` RPC in their own try/catch blocks so they don't block the main flow
+- Add `console.error` with the actual error object for better debugging
+- Refresh the auth session before critical operations to prevent stale token issues
 
-Show location as: Name (custom_type_label || location_type)
+**Primary admin direct execution:**
+- When the primary admin completes the 3-step verification (Warning -> Reason -> Confirm), automatically create the approval request AND call the `data-reset` edge function in one flow
+- Skip the intermediate "pending request" state for primary admins
+- Show a progress indicator during the combined operation
 
-Realtime update when items created/edited/deleted
+**Updated `handleSubmitRequest` logic:**
+```
+1. If primary admin:
+   a. Create approval request
+   b. Immediately invoke data-reset edge function with the approval_request_id
+   c. Show success or failure
+2. If non-primary admin:
+   a. Create approval request
+   b. Try to notify primary admin (non-blocking)
+   c. Show "waiting for approval" message
+```
 
-Prevent duplicate category/location creation
+### 2. data-reset edge function -- Minor robustness fix
 
-Categories
+- Add `{ count: 'exact' }` option to delete queries for accurate deletion counts
+- No functional changes needed; the edge function logic is correct
 
-Add Quick Add inside parent selector
+## Files to Modify
 
-Prevent duplicate category names (case-insensitive)
+| File | Change |
+|------|--------|
+| `src/components/admin/DataResetSection.tsx` | Fix error handling, add primary admin direct execution flow |
+| `supabase/functions/data-reset/index.ts` | Add count option to delete queries |
 
-Realtime sync for category create/update/delete
+## Technical Details
 
-Locations
+### DataResetSection.tsx changes
 
-Ensure custom_type_label is displayed everywhere
+The `handleSubmitRequest` function will be split into two paths:
 
-Use helper:
+**Primary admin path:**
+```typescript
+// 1. Create approval request
+const { data, error } = await supabase.from('approval_requests').insert({...}).select().single();
+if (error) throw error;
 
-getLocationDisplay(location)
+// 2. Directly execute via edge function
+const { data: resetData, error: resetError } = await supabase.functions.invoke('data-reset', {
+  body: { approval_request_id: data.id }
+});
+if (resetError || resetData?.error) throw new Error(resetData?.error || 'Reset failed');
 
+// 3. Success - reload page
+```
 
-Enable Quick Add for parent location
+**Non-primary admin path:**
+```typescript
+// 1. Create approval request
+const { data, error } = await supabase.from('approval_requests').insert({...}).select().single();
+if (error) throw error;
 
-Realtime update for location changes
+// 2. Non-blocking notification (wrapped in try/catch)
+try {
+  const { data: primaryAdminId } = await supabase.rpc('get_primary_admin_id');
+  if (primaryAdminId && primaryAdminId !== user.id) {
+    await supabase.from('notifications').insert({...});
+  }
+} catch (e) {
+  console.error('Non-critical: failed to send notification', e);
+}
 
-Never show raw location_type directly
+// 3. Show pending state
+```
 
-Stock Operations
+### Edge function delete fix
 
-Quick Add for:
+```typescript
+const { count, error } = await serviceClient
+  .from(table)
+  .delete({ count: 'exact' })  // Add count option
+  .neq('id', '00000000-0000-0000-0000-000000000000');
+```
 
-Location
-
-Item (optional minimal)
-
-Realtime stock update sync
-
-Prevent duplicate locations
-
-Scan
-
-Display location using custom label
-
-Realtime reflect stock/location updates
-
-No UI redesign
-
-History
-
-Realtime append new activity entries
-
-No heavy filters or redesign
-
-Import / Export
-
-Use updated entity display (custom labels)
-
-No feature expansion
-
-Reports
-
-Use corrected location display logic
-
-Allow realtime refresh when data changes
-
-Approvals
-
-Realtime reflect approve/reject status
-
-No workflow change
-
-Users
-
-No structural change
-
-Optional realtime refresh (lightweight)
-
-System Logs
-
-Realtime append new logs
-
-No heavy UI
-
-Settings
-
-No redesign
-
-Keep compatibility
-
-Core Features to Implement
-1. Universal Quick Add (Reusable Component)
-
-Used in:
-Items / Categories / Locations / Stock Operations / Filters
-
-Requirements:
-
-Searchable dropdown
-
-“+ Add New” option
-
-Inline create or small modal
-
-Auto-select after create
-
-Prevent duplicate names (trim + case-insensitive)
-
-Optimistic UI update
-
-Rollback on DB failure
-
-Reuse existing service/API layer
-
-Minimal UI only
-
-2. Global Custom Location Type Display
-
-Central helpers:
-
-getLocationTypeDisplay(location)
-getLocationDisplay(location)
-
-
-Rules:
-
-Replace ALL UI usage of location.location_type
-
-Handle null / empty safely
-
-Ensure queries fetch custom_type_label
-
-Never render blank
-
-No schema change
-
-3. Real-Time Multi-User Sync (Lightweight)
-
-Enable Supabase realtime for:
-
-items
-
-locations
-
-stock
-
-categories
-
-history (append-only)
-
-Rules:
-
-Reflect insert/update/delete from other users
-
-Update local cache instead of full refetch when possible
-
-Ignore own-client echo events
-
-Prevent infinite re-render loops
-
-Auto unsubscribe on component unmount
-
-No custom websocket engine
-
-No global state rewrite
-
-4. Performance Rules
-
-Memoize dropdown options
-
-Avoid repeated DB calls
-
-Deduplicate identical queries
-
-Optimistic updates
-
-No duplicate display logic
-
-Keep bundle small
-
-No heavy dependencies
-
-5. Architecture (Do Not Break Existing Flow)
-
-Reusable Components
-→ Existing Entity Service Layer
-→ Supabase
-→ Local Cache / State
-→ UI Sync
-
-Maintain backward compatibility.
-
-6. Stability & Safety
-
-Prevent duplicate entity creation
-
-Handle null/undefined safely
-
-Graceful DB failure fallback
-
-No UI crash on missing fields
-
-Safe realtime unsubscribe
-
-No memory leaks
-
-No workflow regression
-
-Deliver Goal
-
-Implement a stable, tab-aware core upgrade providing:
-
-Quick Add across relevant selectors
-
-Correct custom location label everywhere
-
-Lightweight realtime multi-user sync
-
-Clean reusable architecture
-
-No regressions
-
-Credit-efficient build
