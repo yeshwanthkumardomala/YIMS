@@ -129,8 +129,8 @@ export function DataResetSection() {
 
     setIsSubmitting(true);
     try {
-      // Refresh auth session before critical operations
-      await supabase.auth.refreshSession();
+      // Note: We skip refreshSession() here as it can clear the session on failure,
+      // causing subsequent requests to use the anon key and fail RLS checks.
 
       // Create approval request
       const { data, error } = await supabase
