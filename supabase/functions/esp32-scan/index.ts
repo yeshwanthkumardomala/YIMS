@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-device-api-key',
 }
 
 interface ScanRequest {
@@ -31,6 +31,22 @@ interface LocationData {
   parent_name: string | null
 }
 
+// Simple rate limiting: track requests per device_id
+const rateLimitMap = new Map<string, { count: number; windowStart: number }>()
+const RATE_LIMIT_WINDOW_MS = 60_000 // 1 minute
+const RATE_LIMIT_MAX = 30 // max 30 requests per minute per device
+
+function isRateLimited(deviceId: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(deviceId)
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimitMap.set(deviceId, { count: 1, windowStart: now })
+    return false
+  }
+  entry.count++
+  return entry.count > RATE_LIMIT_MAX
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -46,6 +62,19 @@ Deno.serve(async (req) => {
       )
     }
 
+    // --- Device API Key Authentication ---
+    const ESP32_API_KEY = Deno.env.get('ESP32_API_KEY')
+    if (ESP32_API_KEY) {
+      const deviceApiKey = req.headers.get('x-device-api-key')
+      if (!deviceApiKey || deviceApiKey !== ESP32_API_KEY) {
+        console.warn('ESP32 scan rejected: invalid or missing API key')
+        return new Response(
+          JSON.stringify({ success: false, error: 'Unauthorized: invalid device API key' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+
     // Parse request body
     const body: ScanRequest = await req.json()
     const { code, device_id } = body
@@ -58,6 +87,22 @@ Deno.serve(async (req) => {
           error: 'Missing required fields: code and device_id are required' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Validate input lengths to prevent abuse
+    if (code.length > 100 || device_id.length > 100) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid input: fields too long' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Rate limiting per device
+    if (isRateLimited(device_id)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Rate limit exceeded. Try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -76,7 +121,7 @@ Deno.serve(async (req) => {
       await supabase.from('scan_logs').insert({
         code_scanned: code,
         code_type: 'unknown',
-        scanned_by: null, // ESP32 device, no user
+        scanned_by: null,
         action_taken: `esp32_scan:${device_id}:invalid_format`,
       })
 
@@ -84,7 +129,6 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           success: false, 
           error: 'Invalid code format. Expected YIMS:<TYPE>:<ID>',
-          code 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -96,7 +140,7 @@ Deno.serve(async (req) => {
     await supabase.from('scan_logs').insert({
       code_scanned: code,
       code_type: codeType,
-      scanned_by: null, // ESP32 device, no user context
+      scanned_by: null,
       action_taken: `esp32_scan:${device_id}`,
     })
 
@@ -122,14 +166,14 @@ Deno.serve(async (req) => {
       if (error) {
         console.error('Database error:', error)
         return new Response(
-          JSON.stringify({ success: false, error: 'Database error', code }),
+          JSON.stringify({ success: false, error: 'Database error' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
       if (!item) {
         return new Response(
-          JSON.stringify({ success: false, error: 'Item not found', code }),
+          JSON.stringify({ success: false, error: 'Item not found' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -173,14 +217,14 @@ Deno.serve(async (req) => {
       if (error) {
         console.error('Database error:', error)
         return new Response(
-          JSON.stringify({ success: false, error: 'Database error', code }),
+          JSON.stringify({ success: false, error: 'Database error' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
       if (!location) {
         return new Response(
-          JSON.stringify({ success: false, error: 'Location not found', code }),
+          JSON.stringify({ success: false, error: 'Location not found' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -207,7 +251,6 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         success: false, 
         error: `Unknown code type: ${codeType}`,
-        code 
       }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
