@@ -66,7 +66,7 @@ export default function Users() {
       // Fetch profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, user_id, username, full_name, is_active, failed_login_attempts, locked_until, force_password_change, two_factor_enabled, two_factor_verified_at, created_at, updated_at')
         .order('created_at', { ascending: false });
 
       if (profilesError) throw profilesError;
