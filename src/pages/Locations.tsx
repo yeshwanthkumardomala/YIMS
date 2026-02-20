@@ -494,14 +494,14 @@ export default function Locations() {
                     <div className="grid gap-2">
                       <Label htmlFor="parent">Parent Location</Label>
                       <Select
-                        value={formData.parent_id}
-                        onValueChange={(value) => setFormData({ ...formData, parent_id: value })}
+                        value={formData.parent_id || '__none__'}
+                        onValueChange={(value) => setFormData({ ...formData, parent_id: value === '__none__' ? '' : value })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select parent location (optional)" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">None (top-level)</SelectItem>
+                          <SelectItem value="__none__">None (top-level)</SelectItem>
                           {getParentOptions(formData.location_type).map((loc) => (
                             <SelectItem key={loc.id} value={loc.id}>
                               {loc.name} ({(loc as any).custom_type_label || loc.location_type})

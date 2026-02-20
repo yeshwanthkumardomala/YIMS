@@ -354,12 +354,12 @@ export function QuickAddSection() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="loc-parent">Parent Location</Label>
-                <Select value={locationParentId} onValueChange={setLocationParentId}>
+                <Select value={locationParentId || '__none__'} onValueChange={(v) => setLocationParentId(v === '__none__' ? '' : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="None (top-level)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None (top-level)</SelectItem>
+                    <SelectItem value="__none__">None (top-level)</SelectItem>
                     {locations.map((loc) => (
                       <SelectItem key={loc.id} value={loc.id}>
                         {loc.name} ({loc.custom_type_label || loc.location_type})
@@ -422,12 +422,12 @@ export function QuickAddSection() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="item-cat">Category</Label>
-                <Select value={itemCategoryId} onValueChange={setItemCategoryId}>
+                <Select value={itemCategoryId || '__none__'} onValueChange={(v) => setItemCategoryId(v === '__none__' ? '' : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select category..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No category</SelectItem>
+                    <SelectItem value="__none__">No category</SelectItem>
                     {categories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
                         <div className="flex items-center gap-2">
@@ -446,12 +446,12 @@ export function QuickAddSection() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="item-loc">Location</Label>
-                <Select value={itemLocationId} onValueChange={setItemLocationId}>
+                <Select value={itemLocationId || '__none__'} onValueChange={(v) => setItemLocationId(v === '__none__' ? '' : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select location..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No location</SelectItem>
+                    <SelectItem value="__none__">No location</SelectItem>
                     {locations.map((loc) => (
                       <SelectItem key={loc.id} value={loc.id}>
                         {loc.name} ({loc.custom_type_label || loc.location_type})

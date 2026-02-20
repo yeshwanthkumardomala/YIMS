@@ -68,7 +68,7 @@ export default function History() {
         .select(`
           *,
           item:items(name, code),
-          performer:profiles!stock_transactions_performed_by_fkey(username)
+          performer:profiles!performed_by(username)
         `)
         .order('created_at', { ascending: false })
         .limit(100);

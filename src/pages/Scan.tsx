@@ -139,13 +139,13 @@ export default function Scan() {
 
   const handleStockIn = () => {
     if (scanResult?.type === 'item' && scanResult.data) {
-      navigate('/stock', { state: { itemId: scanResult.data.id, action: 'stock_in' } });
+      navigate('/stock', { state: { itemId: scanResult.data.id, action: 'return' } });
     }
   };
 
   const handleStockOut = () => {
     if (scanResult?.type === 'item' && scanResult.data) {
-      navigate('/stock', { state: { itemId: scanResult.data.id, action: 'stock_out' } });
+      navigate('/stock', { state: { itemId: scanResult.data.id, action: 'issue' } });
     }
   };
 
