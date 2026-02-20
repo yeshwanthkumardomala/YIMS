@@ -519,12 +519,37 @@ export default function Items() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="unit">Unit</Label>
-                        <Input
-                          id="unit"
-                          value={formData.unit}
-                          onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                          placeholder="pcs, kg, m, etc."
-                        />
+                        <Select
+                          value={['pcs', 'box', 'pack', 'set', 'kg', 'm', 'L'].includes(formData.unit) ? formData.unit : '__custom__'}
+                          onValueChange={(value) => {
+                            if (value === '__custom__') {
+                              setFormData({ ...formData, unit: '' });
+                            } else {
+                              setFormData({ ...formData, unit: value });
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pcs">Pieces (pcs)</SelectItem>
+                            <SelectItem value="box">Box</SelectItem>
+                            <SelectItem value="pack">Pack</SelectItem>
+                            <SelectItem value="set">Set</SelectItem>
+                            <SelectItem value="kg">Kilogram (kg)</SelectItem>
+                            <SelectItem value="m">Meter (m)</SelectItem>
+                            <SelectItem value="L">Liter (L)</SelectItem>
+                            <SelectItem value="__custom__">Custom...</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {(!['pcs', 'box', 'pack', 'set', 'kg', 'm', 'L'].includes(formData.unit)) && (
+                          <Input
+                            value={formData.unit}
+                            onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                            placeholder="Enter custom unit"
+                          />
+                        )}
                       </div>
                     </div>
 

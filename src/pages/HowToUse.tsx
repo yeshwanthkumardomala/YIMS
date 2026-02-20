@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Accordion,
   AccordionContent,
@@ -18,6 +18,7 @@ import {
   BarChart3,
   Settings,
   WifiOff,
+  ArrowLeft,
   Download,
   HelpCircle,
   ChevronRight,
@@ -346,8 +347,16 @@ const guideSections: GuideSection[] = [
 ];
 
 export default function HowToUse() {
+  const navigate = useNavigate();
   return (
     <div className="space-y-6">
+      {/* Back Navigation */}
+      <div>
+        <Button variant="ghost" onClick={() => navigate(-1)} className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Go Back
+        </Button>
+      </div>
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">How to Use YIMS</h1>

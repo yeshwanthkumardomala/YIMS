@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import {
   HelpCircle,
   Heart,
   Github,
+  ArrowLeft,
 } from 'lucide-react';
 
 const features = [
@@ -66,8 +67,15 @@ const platforms = [
 ];
 
 export default function About() {
+  const navigate = useNavigate();
   return (
     <div className="space-y-8">
+      <div>
+        <Button variant="ghost" onClick={() => navigate(-1)} className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Go Back
+        </Button>
+      </div>
       {/* Hero Section */}
       <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-primary/10 via-primary/5 to-background border p-8 md:p-12">
         <div className="relative z-10">
